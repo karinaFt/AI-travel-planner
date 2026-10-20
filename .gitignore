@@ -33,3 +33,17 @@ yarn-error.log*
 .idea/
 *.iml
 Thumbs.db
+
+# === Merged from Vite template ===
+pnpm-debug.log*
+lerna-debug.log*
+dist-ssr
+*.local
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
