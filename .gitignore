@@ -1,0 +1,35 @@
+# === OpenSpec & Claude Code Specific ===
+.claude/
+.opencode/
+.codex/
+.trae/
+.openspec-store/
+
+# === React / Node.js standard ===
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# === Logs and Caches ===
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.stylelintcache
+
+# === Environment & Secrets ===
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# === IDE & OS system files ===
+.idea/
+*.iml
+Thumbs.db
