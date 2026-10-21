@@ -1,0 +1,104 @@
+# AI Travel Planner — MVP Roadmap
+
+This is the working plan for the MVP. It is **not** an OpenSpec artifact. Each row becomes its own OpenSpec change, proposed just before it is implemented:
+
+```
+/opsx:propose <name>  →  review  →  /opsx:apply <name>  →  /opsx:archive <name>  →  next row
+```
+
+Update this file when a step is archived or the plan changes.
+
+## Architecture
+
+```
+repo root (npm workspaces)
+├─ client/   React 19 + Vite + TypeScript + Tailwind, React Router, React Hook Form, Zod, date-fns, Vitest + RTL
+├─ server/   Node + TypeScript + Express, @google/genai (Gemini), dotenv, Zod
+├─ shared/   isomorphic Zod schemas and types (trip preferences, itinerary, API envelope, money)
+└─ openspec/ specs and changes
+```
+
+Request flow: `client → POST /api/itineraries/generate → server → Gemini → server (validate + normalize) → client`.
+Persistence: browser localStorage only. No database, no auth.
+
+## Steps
+
+| # | Change | Outcome | Status |
+|---|---|---|---|
+| 1 | `restructure-to-client-folder` | Frontend moved to `client/` as an npm workspace; root scripts unchanged | proposed |
+| 2 | `add-routing-and-rename` | "AI Travel Planner" name, React Router, header nav, not-found page | |
+| 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, landing page | |
+| 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers | |
+| 5 | `add-trip-style-and-interests` | Style, pace, interests, review step, draft retention | |
+| 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | |
+| 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint | |
+| 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README | |
+| 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure | |
+| 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states | |
+| 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math | |
+| 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer | |
+| 13 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync | |
+
+## Decisions carried between steps
+
+These were agreed during planning. Re-check each one when proposing the step it belongs to.
+
+- **Trip preferences (steps 4–5):**
+  - destination 2–100 characters, trimmed;
+  - ISO `YYYY-MM-DD` date strings end to end, with end ≥ start and at most 14 days;
+  - "not in the past" is a client-only rule;
+  - budget > 0 and ≤ 10,000,000 with ≤ 2 decimals;
+  - currencies USD, EUR, GBP, UAH, PLN, CZK, CHF, JPY, CAD, AUD (default EUR);
+  - travelers an integer 1–20 (default 1);
+  - style relaxation | adventure | culture | food | nature (required, no default);
+  - pace relaxed | balanced | packed (default balanced);
+  - interests: up to 10, 2–40 characters each, unique ignoring case.
+- **Numeric inputs** are `type="text"` with `inputMode`, so invalid text such as `abc` or `1e400` is visible to validation.
+- **Activity model (step 7):**
+  - `id` (UUID), `title` 1–120, `description` ≤ 1000;
+  - `category`: sightseeing | culture | food | nature | adventure | relaxation | shopping | nightlife | transport | other;
+  - `startTime` `HH:mm`, `durationMinutes` an integer 5–1440;
+  - `estimatedCost` ≥ 0 with ≤ 2 decimals, for the whole group;
+  - `currency`.
+- **Itinerary model:** days carry `id`, `dayNumber`, `date`, `title` and `activities`.
+- **AI contract (step 7):**
+  - the model returns content only;
+  - the server assigns IDs, dates, day numbers and the trip currency, sorts by start time, and maps unknown categories to `other`;
+  - a wrong day count or a schema failure gives `502 AI_INVALID_RESPONSE` with no automatic retry;
+  - Gemini is called with JSON output and a schema, and Zod is always the final authority.
+- **Error envelope (step 6):** `{ error: { code, message, requestId, details? } }`, with an `X-Request-Id` header. The codes are:
+
+  | Code | Status |
+  |---|---|
+  | `VALIDATION_ERROR` | 400 |
+  | `INVALID_JSON` | 400 |
+  | `UNSUPPORTED_MEDIA_TYPE` | 415 |
+  | `PAYLOAD_TOO_LARGE` | 413 |
+  | `NOT_FOUND` | 404 |
+  | `GENERATION_IN_PROGRESS` | 409 |
+  | `RATE_LIMITED` | 429 |
+  | `AI_INVALID_RESPONSE` | 502 |
+  | `AI_PROVIDER_ERROR` | 502 |
+  | `AI_UNAVAILABLE` | 503 |
+  | `AI_TIMEOUT` | 504 |
+  | `INTERNAL_ERROR` | 500 |
+
+- **Protection (step 8):**
+  - 5 requests/min and 30/hour per IP;
+  - one in-flight generation per IP;
+  - JSON body ≤ 10 KB;
+  - AI timeout 30 s on the server, 45 s on the client;
+  - CORS allow-list from `ALLOWED_ORIGINS`;
+  - never log bodies, prompts, model output or keys;
+  - the README states that these measures do not make the app fully secure.
+- **Money (step 11):** sums are done in integer hundredths. Currencies are never summed or converted. Only trip-currency activities count toward "remaining".
+- **Editing (step 12):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
+- **Saving (step 13):**
+  - auto-save on generation and on every edit, with no Save button;
+  - key `ai-travel-planner:trips` holding `{ version: 1, trips }`;
+  - invalid entries are skipped and backed up, never silently deleted.
+- **UI:** English copy, editorial and calm visual style (serif display + sans body, warm paper background, teal and terracotta accents), WCAG AA contrast, no dark mode.
+
+## Out of scope for the MVP
+
+Authentication, databases, user accounts, payments, hotel and flight booking, live prices or availability, Google Maps, and AI image generation.
