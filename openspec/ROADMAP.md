@@ -23,21 +23,21 @@ Persistence: browser localStorage only. No database, no auth.
 
 ## Steps
 
-| # | Change | Outcome | Status |
-|---|---|---|---|
-| 1 | `restructure-to-client-folder` | Frontend moved to `client/` as an npm workspace; root scripts unchanged | done (archived 2026-10-21) |
-| 2 | `add-routing-and-rename` | "AI Travel Planner" name, React Router, header nav, not-found page | done (archived 2026-10-21) |
-| 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, landing page | |
-| 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers | |
-| 5 | `add-trip-style-and-interests` | Style, pace, interests, review step, draft retention | |
+| # | Change | Outcome                                                                                                        | Status |
+|---|---|----------------------------------------------------------------------------------------------------------------|---|
+| 1 | `restructure-to-client-folder` | Frontend moved to `client/` as an npm workspace; root scripts unchanged                                        | done (archived 2026-10-21) |
+| 2 | `add-routing-and-rename` | "AI Travel Planner" name, React Router, header nav, not-found page                                             | done (archived 2026-10-21) |
+| 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, website color palette – light, modern, pleasant colors, landing page    | |
+| 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers        | |
+| 5 | `add-trip-style-and-interests` | Style, pace, interests, review step, draft retention                                                           | |
 | 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | |
-| 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint | |
-| 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README | |
-| 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure | |
-| 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states | |
-| 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math | |
-| 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer | |
-| 13 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync | |
+| 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | |
+| 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | |
+| 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | |
+| 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | |
+| 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math                             | |
+| 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
+| 13 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
 
 ## Decisions carried between steps
 
