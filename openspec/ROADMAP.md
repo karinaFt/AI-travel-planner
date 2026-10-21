@@ -27,7 +27,7 @@ Persistence: browser localStorage only. No database, no auth.
 |---|---|----------------------------------------------------------------------------------------------------------------|---|
 | 1 | `restructure-to-client-folder` | Frontend moved to `client/` as an npm workspace; root scripts unchanged                                        | done (archived 2026-10-21) |
 | 2 | `add-routing-and-rename` | "AI Travel Planner" name, React Router, header nav, not-found page                                             | done (archived 2026-10-21) |
-| 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, website color palette – light, modern, pleasant colors, landing page    | |
+| 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, website color palette – light, modern, pleasant colors, landing page    | done (archived 2026-10-21) |
 | 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers        | |
 | 5 | `add-trip-style-and-interests` | Style, pace, interests, review step, draft retention                                                           | |
 | 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | |
