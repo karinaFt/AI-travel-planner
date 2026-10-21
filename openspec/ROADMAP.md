@@ -25,7 +25,7 @@ Persistence: browser localStorage only. No database, no auth.
 
 | # | Change | Outcome | Status |
 |---|---|---|---|
-| 1 | `restructure-to-client-folder` | Frontend moved to `client/` as an npm workspace; root scripts unchanged | proposed |
+| 1 | `restructure-to-client-folder` | Frontend moved to `client/` as an npm workspace; root scripts unchanged | done (archived 2026-10-21) |
 | 2 | `add-routing-and-rename` | "AI Travel Planner" name, React Router, header nav, not-found page | |
 | 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, landing page | |
 | 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers | |
