@@ -1,11 +1,18 @@
-import './App.css'
+import { Route, Routes } from 'react-router'
+import { RootLayout } from './layouts/RootLayout.tsx'
+import { HomePage } from './pages/HomePage.tsx'
+import { NotFoundPage } from './pages/NotFoundPage.tsx'
+import { PlanPage } from './pages/PlanPage.tsx'
 
 function App() {
   return (
-    <main className="app">
-      <h1>Smart Doc Assistant</h1>
-      <p>Your documents, made easier to work with. Features are on the way.</p>
-    </main>
+    <Routes>
+      <Route element={<RootLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="plan" element={<PlanPage />} />
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
   )
 }
 

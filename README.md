@@ -1,6 +1,6 @@
 # AI Travel Planner
 
-A single-page React application built with Vite and TypeScript.
+Plan a multi-day trip with AI. You enter your travel preferences, get a day-by-day itinerary, adjust the activities and their estimated costs, and keep your trips in the browser. It is a single-page React application built with Vite and TypeScript.
 
 ## Prerequisites
 
@@ -41,10 +41,15 @@ client/               Frontend workspace (@travel-planner/client)
   vite.config.ts      Vite and Vitest configuration
   public/             Static files copied as-is to the build
   src/
-    main.tsx          Mounts the React app
-    App.tsx           Root view
-    App.test.tsx      Tests for the root view
-    test/setup.ts     Test environment setup (jest-dom matchers, cleanup)
+    main.tsx          Mounts the React app inside the browser router
+    App.tsx           Route table (/, /plan, not-found)
+    App.test.tsx      App shell and navigation tests
+    config.ts         App-wide constants (app name)
+    layouts/          Page frame shared by all routes (header + main)
+    pages/            One component per route
+    components/       Reusable UI pieces (site header)
+    hooks/            Reusable hooks (document title)
+    test/             Test setup and helpers (jest-dom, renderWithRouter)
 openspec/             Specs, change proposals and the MVP roadmap (OpenSpec)
 ```
 
