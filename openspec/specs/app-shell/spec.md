@@ -70,13 +70,6 @@ Decorative graphics SHALL be hidden from assistive technology.
 - **WHEN** a screen reader user reads the landing page
 - **THEN** the decorative illustration is not announced
 
-### Requirement: Plan page placeholder
-The URL `/plan` SHALL show a page with the top-level heading "Plan a trip" and a message that the trip form is coming soon.
-
-#### Scenario: Opening the plan page directly
-- **WHEN** a user opens `/plan` by typing the URL or reloading the page
-- **THEN** the page with the heading "Plan a trip" is shown
-
 ### Requirement: Header navigation
 The header SHALL contain a navigation landmark with the links "Home" (`/`) and "Plan a trip" (`/plan`). The link of the current page SHALL be exposed as the current page to assistive technology and visibly distinguished. All header links SHALL be reachable and usable with the keyboard.
 
