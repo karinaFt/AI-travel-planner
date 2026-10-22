@@ -37,6 +37,7 @@ const pairs: Array<[string, string, number]> = [
   ['surface', 'primary', TEXT],
   ['surface', 'primary-hover', TEXT],
   ['coral-text', 'canvas', TEXT],
+  ['coral-text', 'surface', TEXT],
   ['coral-text', 'coral-soft', TEXT],
   ['coral', 'canvas', NON_TEXT],
   ['line-strong', 'surface', NON_TEXT],

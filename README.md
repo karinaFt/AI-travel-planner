@@ -35,6 +35,9 @@ Open the local URL printed in the terminal (by default http://localhost:5173/). 
 ```
 package.json          Workspaces root: shared scripts, oxlint, single lockfile
 .oxlintrc.json        Lint rules for every workspace
+shared/               Isomorphic code workspace (@travel-planner/shared)
+  src/trip-basics.ts  Trip basics schema (Zod), currencies, limits, messages
+  src/dates.ts        YYYY-MM-DD helpers (date-fns)
 client/               Frontend workspace (@travel-planner/client)
   package.json        Frontend dependencies and scripts
   index.html          HTML entry point
@@ -49,14 +52,36 @@ client/               Frontend workspace (@travel-planner/client)
     pages/            One component per route
     index.css         Tailwind import, design tokens (@theme) and base styles
     components/       Site header and other shared pieces
-      ui/             UI primitives: Button, ButtonLink, Card, Container, PageHeading
+      ui/             UI primitives: Button, ButtonLink, Card, Container, PageHeading,
+                      Field, TextInput, DateInput, Select
+    features/
+      trip-setup/     Trip basics form, its raw-input schema and the summary
     hooks/            Reusable hooks (document title)
     theme/            Contrast helper and the test that guards the token palette
     test/             Test setup and helpers (jest-dom, renderWithRouter)
 openspec/             Specs, change proposals and the MVP roadmap (OpenSpec)
 ```
 
-The backend (`server/`) and the shared schemas (`shared/`) are added as workspaces in later steps. See `openspec/ROADMAP.md`.
+The backend (`server/`) is added as a workspace in a later step. See `openspec/ROADMAP.md`.
+
+## Shared code
+
+`shared/` holds validation and types that both the browser and the future server must agree on.
+
+- **It is consumed as TypeScript source, with no build step.** Its `package.json` exports `./src/index.ts`, and Vite, Vitest and `tsc` compile it directly. After pulling changes that add or rename a workspace, run `npm install` so npm re-links it.
+- **It must stay free of DOM and React code.** Its tsconfig has no DOM types.
+
+The trip basics rules (`tripBasicsSchema`):
+
+| Field | Rule |
+|---|---|
+| Destination | Required; 2–100 characters after trimming |
+| Start and end dates | Real calendar dates as `YYYY-MM-DD`; the end is not before the start; at most 14 days, counting both ends |
+| Budget | Greater than 0; at most 10,000,000; at most 2 decimals |
+| Currency | One of USD, EUR, GBP, UAH, PLN, CZK, CHF, JPY, CAD, AUD (default EUR) |
+| Travelers | Whole number from 1 to 20 (default 1) |
+
+The form in `client/src/features/trip-setup/formSchema.ts` parses the raw input strings, reuses these rules, and adds one browser-only rule: the start date can't be in the past (in the user's time zone).
 
 ## Styling
 

@@ -107,13 +107,14 @@ describe('Home page', () => {
 })
 
 describe('Plan page', () => {
-  it('shows the heading and the coming-soon message', () => {
+  it('shows the heading and the trip form instead of a placeholder', () => {
     renderWithRouter(<App />, { route: '/plan' })
 
     expect(
       screen.getByRole('heading', { level: 1, name: 'Plan a trip' }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/trip form is coming soon/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
   })
 })
 
