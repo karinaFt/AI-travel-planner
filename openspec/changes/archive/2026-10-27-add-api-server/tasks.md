@@ -2,7 +2,7 @@
 
 ## 1. Server workspace and tooling
 
-- [ ] 1.1 Create `server/` (`package.json` as `@travel-planner/server` with scripts `dev`, `build`, `start`, `typecheck`, `test`; `tsconfig.json` per design D1; a minimal `src/index.ts`), add `server` to root `workspaces`, install the runtime deps (`express`, `cors`, `helmet`, `dotenv`, `zod`, `@travel-planner/shared`) and dev deps (`tsx`, `esbuild`, `typescript`, `vitest`, `supertest`, `@types/express`, `@types/cors`, `@types/supertest`, `@types/node`) in the server workspace and `concurrently` at the root; stop any running dev server first; verify `npm ci`, `npm run typecheck` and `npm test` from the root exit 0
+- [x] 1.1 Create `server/` (`package.json` as `@travel-planner/server` with scripts `dev`, `build`, `start`, `typecheck`, `test`; `tsconfig.json` per design D1; a minimal `src/index.ts`), add `server` to root `workspaces`, install the runtime deps (`express`, `cors`, `helmet`, `dotenv`, `zod`, `@travel-planner/shared`) and dev deps (`tsx`, `esbuild`, `typescript`, `vitest`, `supertest`, `@types/express`, `@types/cors`, `@types/supertest`, `@types/node`) in the server workspace and `concurrently` at the root; stop any running dev server first; verify `npm ci`, `npm run typecheck` and `npm test` from the root exit 0
 - [x] 1.2 Add root scripts `dev` (concurrently client + api), `dev:client`, `dev:server` and `start`; add the `/api` proxy to `client/vite.config.ts`; verify `npm run build` produces `client/dist/index.html` and `server/dist/index.cjs`
 
 ## 2. Shared API contract
@@ -27,7 +27,7 @@
 ## 6. Documentation and checks
 
 - [x] 6.1 Update `README.md`: request flow (client → API → Gemini later), `server/` in the project layout, environment setup from `server/.env.example` with each variable, the new scripts (`dev`, `dev:client`, `dev:server`, `start`) and `API_PROXY_TARGET`, the error envelope and code table, and a note that CORS limits browsers only; verify the documented commands run as written
-- [ ] 6.2 Run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npx @fission-ai/openspec@latest validate add-api-server --strict`; verify all pass
+- [x] 6.2 Run `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` and `npx @fission-ai/openspec@latest validate add-api-server --strict`; verify all pass
 
 ## Workflow follow-up
 
