@@ -146,7 +146,12 @@ When the user submits a valid form, the application SHALL produce normalized tri
 - travel style and pace;
 - trimmed interests in the order they were added.
 
-It SHALL then show a review of all of them: the trip length in days, the budget formatted in the chosen currency, the number of travelers, and "Not specified" for a missing starting point and "None" for an empty interests list. The review SHALL offer an "Edit details" action that returns to the form with all values kept, and SHALL say that itinerary generation is the next step.
+#### Scenario: Normalized values
+- **WHEN** a user submits a valid form with the destination "  Lisbon  ", an empty starting point and the interests " wine " and "markets"
+- **THEN** the trip preferences have the destination "Lisbon", no starting point and the interests "wine" and "markets" in that order
+
+### Requirement: Trip review
+After a valid submission, the application SHALL show a review of the trip preferences: the trip length in days, the budget formatted in the chosen currency, the number of travelers, and "Not specified" for a missing starting point and "None" for an empty interests list. The review SHALL offer an "Edit details" action that returns to the form with all values kept, and SHALL say that itinerary generation is the next step.
 
 #### Scenario: Summary after submitting
 - **WHEN** a user submits Lisbon from Kyiv, 2026-11-10 to 2026-11-12, budget 1500 EUR, 2 travelers, style food, pace relaxed, interests "wine" and "markets"
