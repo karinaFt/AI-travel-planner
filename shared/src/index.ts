@@ -1,4 +1,11 @@
-// Isomorphic code shared by the client and (later) the server.
+// Isomorphic code shared by the client and the server.
+export {
+  ERROR_CODES,
+  apiErrorBodySchema,
+  type ApiErrorBody,
+  type ApiErrorCode,
+  type ApiSuccess,
+} from './api.ts'
 export { isIsoDate, tripLengthInDays } from './dates.ts'
 export {
   CURRENCIES,
