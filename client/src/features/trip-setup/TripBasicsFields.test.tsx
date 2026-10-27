@@ -2,9 +2,9 @@ import { fireEvent, screen } from '@testing-library/react'
 import { MESSAGES } from '@travel-planner/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { START_IN_PAST_MESSAGE } from './formSchema.ts'
-import { fillBasics, renderPlanPage, tripFields, validBasics } from './testUtils.tsx'
+import { fillPreferences, renderPlanPage, tripFields, validPreferences } from './testUtils.tsx'
 
-const SUMMARY_HEADING = 'Your trip so far'
+const SUMMARY_HEADING = 'Review your trip'
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -15,9 +15,9 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-async function submitWith(overrides: Partial<typeof validBasics>) {
+async function submitWith(overrides: Partial<typeof validPreferences>) {
   const user = renderPlanPage()
-  await fillBasics(user, { ...validBasics, ...overrides })
+  await fillPreferences(user, { ...validPreferences, ...overrides })
   await user.click(tripFields.submit())
   return user
 }
@@ -43,18 +43,18 @@ describe('Trip basics fields', () => {
     const user = await submitWith({ startDate: '2026-11-10', endDate: '2026-11-08' })
     expectError(tripFields.endDate(), MESSAGES.endBeforeStart)
 
-    await fillBasics(user, { startDate: '2026-11-05' })
+    await fillPreferences(user, { startDate: '2026-11-05' })
 
     expect(tripFields.endDate()).not.toHaveAttribute('aria-invalid')
   })
 
   it('allows 14 days, rejects 15 and clears the error when fixed', async () => {
     const user = renderPlanPage()
-    await fillBasics(user, { ...validBasics, startDate: '2026-11-01', endDate: '2026-11-15' })
+    await fillPreferences(user, { ...validPreferences, startDate: '2026-11-01', endDate: '2026-11-15' })
     await user.click(tripFields.submit())
     expectError(tripFields.endDate(), MESSAGES.tripTooLong)
 
-    await fillBasics(user, { endDate: '2026-11-14' })
+    await fillPreferences(user, { endDate: '2026-11-14' })
 
     expect(tripFields.endDate()).not.toHaveAttribute('aria-invalid')
   })
@@ -96,7 +96,7 @@ describe('Trip basics fields', () => {
 
   it('rejects a currency value that is not in the list', async () => {
     const user = renderPlanPage()
-    await fillBasics(user, validBasics)
+    await fillPreferences(user, validPreferences)
     const select = tripFields.currency() as HTMLSelectElement
     // Simulate a value changed through developer tools.
     select.add(new Option('XYZ', 'XYZ'))
@@ -110,7 +110,7 @@ describe('Trip basics fields', () => {
 
   it('handles pasted junk without crashing', async () => {
     const user = renderPlanPage()
-    await fillBasics(user, { ...validBasics, budget: '' })
+    await fillPreferences(user, { ...validPreferences, budget: '' })
     await user.click(tripFields.budget())
     await user.paste('1e400')
 
@@ -122,7 +122,7 @@ describe('Trip basics fields', () => {
 
   it('handles a very long destination', async () => {
     const user = renderPlanPage()
-    await fillBasics(user, { ...validBasics, destination: '' })
+    await fillPreferences(user, { ...validPreferences, destination: '' })
     await user.click(tripFields.destination())
     await user.paste('x'.repeat(5000))
     await user.click(tripFields.submit())

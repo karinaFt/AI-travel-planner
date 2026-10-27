@@ -29,7 +29,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 2 | `add-routing-and-rename` | "AI Travel Planner" name, React Router, header nav, not-found page                                             | done (archived 2026-10-21) |
 | 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, website color palette – light, modern, pleasant colors, landing page    | done (archived 2026-10-21) |
 | 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers<br/>        | done (archived 2026-10-22) |
-| 5 | `add-trip-style-and-interests` | Style, pace, interests, review step, draft retention                                                           | |
+| 5 | `add-trip-style-and-interests` | Optional "Starting from", style, pace, interests, review step, draft retention                                 | |
 | 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | |
 | 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | |
 | 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | |
@@ -45,6 +45,7 @@ These were agreed during planning. Re-check each one when proposing the step it 
 
 - **Trip preferences (steps 4–5):**
   - destination 2–100 characters, trimmed;
+  - "Starting from" (step 5, decided 2026-10-27): optional free text, no dropdown or places API. When filled, it must be 2–100 characters after trimming; empty means not provided. It only helps the AI plan arrival and departure days. The trip budget does not include getting to and from the destination, and the form says so;
   - ISO `YYYY-MM-DD` date strings end to end, with end ≥ start and at most 14 days;
   - "not in the past" is a client-only rule;
   - budget > 0 and ≤ 10,000,000 with ≤ 2 decimals;
@@ -63,6 +64,7 @@ These were agreed during planning. Re-check each one when proposing the step it 
 - **Itinerary model:** days carry `id`, `dayNumber`, `date`, `title` and `activities`.
 - **AI contract (step 7):**
   - the model returns content only;
+  - when "Starting from" is given, the prompt asks for a lighter first and last day (arrival and departure) and tips for getting from the arrival point. It never asks for flights, tickets or prices of travel to the destination;
   - the server assigns IDs, dates, day numbers and the trip currency, sorts by start time, and maps unknown categories to `other`;
   - a wrong day count or a schema failure gives `502 AI_INVALID_RESPONSE` with no automatic retry;
   - Gemini is called with JSON output and a schema, and Zod is always the final authority.

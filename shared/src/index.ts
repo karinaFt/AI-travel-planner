@@ -14,3 +14,18 @@ export {
   type Currency,
   type TripBasics,
 } from './trip-basics.ts'
+export {
+  DEFAULT_PACE,
+  INTEREST_LIMITS,
+  ORIGIN_LIMITS,
+  PACES,
+  PREFERENCE_MESSAGES,
+  TRAVEL_STYLES,
+  hasInterest,
+  interestSchema,
+  originSchema,
+  tripPreferencesSchema,
+  type Pace,
+  type TravelStyle,
+  type TripPreferences,
+} from './trip-preferences.ts'

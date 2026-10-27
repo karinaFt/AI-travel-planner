@@ -1,17 +1,23 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { CURRENCIES, CURRENCY_NAMES, type TripBasics } from '@travel-planner/shared'
+import { CURRENCIES, CURRENCY_NAMES, type TripPreferences } from '@travel-planner/shared'
 import { format } from 'date-fns'
-import { useState, type Ref } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useEffect, useState, type Ref } from 'react'
+import { Controller, useForm, useWatch, type FieldErrors } from 'react-hook-form'
 import { Button } from '../../components/ui/Button.tsx'
 import { DateInput } from '../../components/ui/DateInput.tsx'
 import { Field } from '../../components/ui/Field.tsx'
 import { Select } from '../../components/ui/Select.tsx'
 import { TextInput } from '../../components/ui/TextInput.tsx'
-import { emptyTripBasicsForm, tripBasicsFormSchema, type TripBasicsFormValues } from './formSchema.ts'
+import { emptyTripPreferencesForm, tripPreferencesFormSchema, type TripPreferencesFormValues } from './formSchema.ts'
+import { InterestsField } from './InterestsField.tsx'
+import { PaceField, TravelStyleField } from './StyleFields.tsx'
 
-type TripBasicsFormProps = {
-  onSubmit: (basics: TripBasics) => void
+type TripPreferencesFormProps = {
+  onSubmit: (preferences: TripPreferences) => void
+  /** Values to start from, e.g. a saved draft. */
+  initialValues?: TripPreferencesFormValues
+  /** Called with all raw values after every change, e.g. to keep a draft. */
+  onValuesChange?: (values: TripPreferencesFormValues) => void
   /** Receives the destination input, so the page can focus it when returning to the form. */
   destinationRef?: Ref<HTMLInputElement>
 }
@@ -20,21 +26,48 @@ const sectionClass = 'flex flex-col gap-5 border-0 p-0'
 // A <legend> is not a flex item of its fieldset, so it needs its own bottom margin.
 const legendClass = 'mb-4 font-display text-xl text-ink'
 
-export function TripBasicsForm({ onSubmit, destinationRef }: TripBasicsFormProps) {
+/** First message of a list field: its own error, or the first per-item error. */
+function listError(error: FieldErrors<TripPreferencesFormValues>['interests']) {
+  if (!error) return undefined
+  if (error.message) return error.message
+  // Per-item errors are stored under numeric keys ("0", "1", ...).
+  const items = error as unknown as Record<string, { message?: string } | undefined>
+  return Object.keys(items)
+    .filter((key) => /^\d+$/.test(key))
+    .map((key) => items[key]?.message)
+    .find(Boolean)
+}
+
+export function TripPreferencesForm({
+  onSubmit,
+  initialValues = emptyTripPreferencesForm,
+  onValuesChange,
+  destinationRef,
+}: TripPreferencesFormProps) {
   const {
     register,
     handleSubmit,
     trigger,
     control,
     getFieldState,
+    subscribe,
     formState: { errors, isSubmitted },
-  } = useForm<TripBasicsFormValues, unknown, TripBasics>({
-    resolver: zodResolver(tripBasicsFormSchema),
+  } = useForm<TripPreferencesFormValues, unknown, TripPreferences>({
+    resolver: zodResolver(tripPreferencesFormSchema),
     mode: 'onTouched',
     reValidateMode: 'onChange',
     shouldFocusError: true,
-    defaultValues: emptyTripBasicsForm,
+    defaultValues: initialValues,
   })
+
+  // Report every change without re-rendering the form on each keystroke.
+  useEffect(() => {
+    if (!onValuesChange) return
+    return subscribe({
+      formState: { values: true },
+      callback: ({ values }) => onValuesChange(values),
+    })
+  }, [subscribe, onValuesChange])
 
   // Read the clock once per form instance, not on every render.
   const [today] = useState(() => format(new Date(), 'yyyy-MM-dd'))
@@ -69,6 +102,13 @@ export function TripBasicsForm({ onSubmit, destinationRef }: TripBasicsFormProps
             />
           )}
         </Field>
+        <Field
+          label="Starting from (optional)"
+          hint="Where your trip begins, e.g. Kyiv. Used to plan arrival and departure days"
+          error={errors.origin?.message}
+        >
+          {(control) => <TextInput {...control} {...register('origin')} autoComplete="off" />}
+        </Field>
         <div className="grid gap-5 sm:grid-cols-2">
           <Field label="Start date" error={errors.startDate?.message}>
             {(control) => <DateInput {...control} {...startDateField} min={today} />}
@@ -84,7 +124,7 @@ export function TripBasicsForm({ onSubmit, destinationRef }: TripBasicsFormProps
         <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(0,14rem)]">
           <Field
             label="Total budget"
-            hint="For the whole trip. Use a dot for decimals, e.g. 1500.50"
+            hint="For the trip at your destination; getting there and back isn't included. Use a dot for decimals, e.g. 1500.50"
             error={errors.budget?.message}
           >
             {(control) => (
@@ -110,9 +150,22 @@ export function TripBasicsForm({ onSubmit, destinationRef }: TripBasicsFormProps
         </Field>
       </fieldset>
 
+      <fieldset className={sectionClass}>
+        <legend className={legendClass}>Your style</legend>
+        <TravelStyleField inputProps={register('travelStyle')} error={errors.travelStyle?.message} />
+        <PaceField inputProps={register('pace')} error={errors.pace?.message} />
+        <Controller
+          control={control}
+          name="interests"
+          render={({ field }) => (
+            <InterestsField value={field.value} onChange={field.onChange} error={listError(errors.interests)} />
+          )}
+        />
+      </fieldset>
+
       <div>
         <Button type="submit" size="lg">
-          Continue
+          Review trip
         </Button>
       </div>
     </form>

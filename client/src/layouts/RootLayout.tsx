@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { SiteHeader } from '../components/SiteHeader.tsx'
+import { TripDraftProvider } from '../features/trip-setup/TripDraftProvider.tsx'
 
 export function RootLayout() {
   const location = useLocation()
@@ -39,7 +40,9 @@ export function RootLayout() {
       </a>
       <SiteHeader />
       <main id="main" ref={mainRef} tabIndex={-1} className="focus:outline-none">
-        <Outlet />
+        <TripDraftProvider>
+          <Outlet />
+        </TripDraftProvider>
       </main>
     </>
   )

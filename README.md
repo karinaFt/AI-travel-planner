@@ -37,6 +37,7 @@ package.json          Workspaces root: shared scripts, oxlint, single lockfile
 .oxlintrc.json        Lint rules for every workspace
 shared/               Isomorphic code workspace (@travel-planner/shared)
   src/trip-basics.ts  Trip basics schema (Zod), currencies, limits, messages
+  src/trip-preferences.ts  Full trip preferences: basics + starting point, style, pace, interests
   src/dates.ts        YYYY-MM-DD helpers (date-fns)
 client/               Frontend workspace (@travel-planner/client)
   package.json        Frontend dependencies and scripts
@@ -53,9 +54,10 @@ client/               Frontend workspace (@travel-planner/client)
     index.css         Tailwind import, design tokens (@theme) and base styles
     components/       Site header and other shared pieces
       ui/             UI primitives: Button, ButtonLink, Card, Container, PageHeading,
-                      Field, TextInput, DateInput, Select
+                      Field, TextInput, DateInput, Select, RadioCardGroup
     features/
-      trip-setup/     Trip basics form, its raw-input schema and the summary
+      trip-setup/     Trip preferences form, its raw-input schema, style/pace/interests
+                      fields, the review step and the draft kept for the tab session
     hooks/            Reusable hooks (document title)
     theme/            Contrast helper and the test that guards the token palette
     test/             Test setup and helpers (jest-dom, renderWithRouter)
@@ -71,17 +73,23 @@ The backend (`server/`) is added as a workspace in a later step. See `openspec/R
 - **It is consumed as TypeScript source, with no build step.** Its `package.json` exports `./src/index.ts`, and Vite, Vitest and `tsc` compile it directly. After pulling changes that add or rename a workspace, run `npm install` so npm re-links it.
 - **It must stay free of DOM and React code.** Its tsconfig has no DOM types.
 
-The trip basics rules (`tripBasicsSchema`):
+The trip preferences rules (`tripPreferencesSchema`, which extends `tripBasicsSchema`):
 
 | Field | Rule |
 |---|---|
 | Destination | Required; 2–100 characters after trimming |
+| Starting from | Optional; empty means not provided, otherwise 2–100 characters after trimming. Only used to plan arrival and departure days |
 | Start and end dates | Real calendar dates as `YYYY-MM-DD`; the end is not before the start; at most 14 days, counting both ends |
-| Budget | Greater than 0; at most 10,000,000; at most 2 decimals |
+| Budget | Greater than 0; at most 10,000,000; at most 2 decimals. Covers the trip at the destination, not getting there and back |
 | Currency | One of USD, EUR, GBP, UAH, PLN, CZK, CHF, JPY, CAD, AUD (default EUR) |
 | Travelers | Whole number from 1 to 20 (default 1) |
+| Travel style | Required; one of relaxation, adventure, culture, food, nature |
+| Pace | One of relaxed, balanced, packed (default balanced) |
+| Interests | Up to 10, each 2–40 characters after trimming, no duplicates ignoring case |
 
 The form in `client/src/features/trip-setup/formSchema.ts` parses the raw input strings, reuses these rules, and adds one browser-only rule: the start date can't be in the past (in the user's time zone).
+
+What the user types on `/plan` is kept in a draft (`TripDraftProvider`) while they move between pages in the same tab. A full reload starts empty; trips are saved for real in a later step.
 
 ## Styling
 

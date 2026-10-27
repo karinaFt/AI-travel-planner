@@ -113,7 +113,7 @@ describe('Plan page', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Plan a trip' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review trip' })).toBeInTheDocument()
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
   })
 })

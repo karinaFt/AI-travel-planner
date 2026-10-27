@@ -1,18 +1,27 @@
-import { MESSAGES } from '@travel-planner/shared'
+import { MESSAGES, PREFERENCE_MESSAGES } from '@travel-planner/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { START_IN_PAST_MESSAGE, tripBasicsFormSchema, type TripBasicsFormValues } from './formSchema.ts'
+import {
+  START_IN_PAST_MESSAGE,
+  emptyTripPreferencesForm,
+  tripPreferencesFormSchema,
+  type TripPreferencesFormValues,
+} from './formSchema.ts'
 
-const valid: TripBasicsFormValues = {
+const valid: TripPreferencesFormValues = {
   destination: 'Lisbon',
+  origin: '',
   startDate: '2026-11-10',
   endDate: '2026-11-12',
   budget: '1500',
   currency: 'EUR',
   travelers: '2',
+  travelStyle: 'food',
+  pace: 'balanced',
+  interests: [],
 }
 
-function errors(overrides: Partial<TripBasicsFormValues>) {
-  const result = tripBasicsFormSchema.safeParse({ ...valid, ...overrides })
+function errors(overrides: Partial<TripPreferencesFormValues>) {
+  const result = tripPreferencesFormSchema.safeParse({ ...valid, ...overrides })
   if (result.success) return {}
   const byField: Record<string, string> = {}
   for (const issue of result.error.issues) {
@@ -30,22 +39,64 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('tripBasicsFormSchema', () => {
-  it('turns raw strings into normalized trip basics', () => {
+describe('tripPreferencesFormSchema', () => {
+  it('turns raw values into normalized trip preferences', () => {
     expect(
-      tripBasicsFormSchema.parse({
+      tripPreferencesFormSchema.parse({
         ...valid,
         destination: '  Lisbon, Portugal  ',
+        origin: '  Kyiv ',
         budget: ' 1500.5 ',
         travelers: ' 2 ',
+        pace: 'relaxed',
+        interests: [' wine ', 'markets'],
       }),
     ).toEqual({
       destination: 'Lisbon, Portugal',
+      origin: 'Kyiv',
       startDate: '2026-11-10',
       endDate: '2026-11-12',
       budget: 1500.5,
       currency: 'EUR',
       travelers: 2,
+      travelStyle: 'food',
+      pace: 'relaxed',
+      interests: ['wine', 'markets'],
+    })
+  })
+
+  it('starts with EUR, 1 traveler, balanced pace and nothing else chosen', () => {
+    expect(emptyTripPreferencesForm).toMatchObject({
+      currency: 'EUR',
+      travelers: '1',
+      pace: 'balanced',
+      travelStyle: '',
+      origin: '',
+      interests: [],
+    })
+  })
+
+  describe('preferences', () => {
+    it('drops an empty starting point', () => {
+      expect(tripPreferencesFormSchema.parse({ ...valid, origin: '   ' }).origin).toBeUndefined()
+    })
+
+    it('rejects a one-letter starting point', () => {
+      expect(errors({ origin: 'K' }).origin).toBe(PREFERENCE_MESSAGES.originLength)
+    })
+
+    it('asks for a travel style when none is chosen', () => {
+      expect(errors({ travelStyle: '' }).travelStyle).toBe(PREFERENCE_MESSAGES.travelStyle)
+    })
+
+    it.each(['', 'slow'])('rejects pace %j', (pace) => {
+      expect(errors({ pace }).pace).toBe(PREFERENCE_MESSAGES.pace)
+    })
+
+    it('rejects duplicate interests', () => {
+      expect(errors({ interests: ['Museums', 'museums'] })['interests.1']).toBe(
+        PREFERENCE_MESSAGES.interestDuplicate,
+      )
     })
   })
 
