@@ -35,6 +35,10 @@ Open the local URL printed in the terminal (by default http://localhost:5173/). 
 ```
 package.json          Workspaces root: shared scripts, oxlint, single lockfile
 .oxlintrc.json        Lint rules for every workspace
+shared/               Isomorphic code workspace (@travel-planner/shared)
+  src/trip-basics.ts  Trip basics schema (Zod), currencies, limits, messages
+  src/trip-preferences.ts  Full trip preferences: basics + starting point, style, pace, interests
+  src/dates.ts        YYYY-MM-DD helpers (date-fns)
 client/               Frontend workspace (@travel-planner/client)
   package.json        Frontend dependencies and scripts
   index.html          HTML entry point
@@ -47,10 +51,52 @@ client/               Frontend workspace (@travel-planner/client)
     config.ts         App-wide constants (app name)
     layouts/          Page frame shared by all routes (header + main)
     pages/            One component per route
-    components/       Reusable UI pieces (site header)
+    index.css         Tailwind import, design tokens (@theme) and base styles
+    components/       Site header and other shared pieces
+      ui/             UI primitives: Button, ButtonLink, Card, Container, PageHeading,
+                      Field, TextInput, DateInput, Select, RadioCardGroup
+    features/
+      trip-setup/     Trip preferences form, its raw-input schema, style/pace/interests
+                      fields, the review step and the draft kept for the tab session
     hooks/            Reusable hooks (document title)
+    theme/            Contrast helper and the test that guards the token palette
     test/             Test setup and helpers (jest-dom, renderWithRouter)
 openspec/             Specs, change proposals and the MVP roadmap (OpenSpec)
 ```
 
-The backend (`server/`) and the shared schemas (`shared/`) are added as workspaces in later steps. See `openspec/ROADMAP.md`.
+The backend (`server/`) is added as a workspace in a later step. See `openspec/ROADMAP.md`.
+
+## Shared code
+
+`shared/` holds validation and types that both the browser and the future server must agree on.
+
+- **It is consumed as TypeScript source, with no build step.** Its `package.json` exports `./src/index.ts`, and Vite, Vitest and `tsc` compile it directly. After pulling changes that add or rename a workspace, run `npm install` so npm re-links it.
+- **It must stay free of DOM and React code.** Its tsconfig has no DOM types.
+
+The trip preferences rules (`tripPreferencesSchema`, which extends `tripBasicsSchema`):
+
+| Field | Rule |
+|---|---|
+| Destination | Required; 2–100 characters after trimming |
+| Starting from | Optional; empty means not provided, otherwise 2–100 characters after trimming. Only used to plan arrival and departure days |
+| Start and end dates | Real calendar dates as `YYYY-MM-DD`; the end is not before the start; at most 14 days, counting both ends |
+| Budget | Greater than 0; at most 10,000,000; at most 2 decimals. Covers the trip at the destination, not getting there and back |
+| Currency | One of USD, EUR, GBP, UAH, PLN, CZK, CHF, JPY, CAD, AUD (default EUR) |
+| Travelers | Whole number from 1 to 20 (default 1) |
+| Travel style | Required; one of relaxation, adventure, culture, food, nature |
+| Pace | One of relaxed, balanced, packed (default balanced) |
+| Interests | Up to 10, each 2–40 characters after trimming, no duplicates ignoring case |
+
+The form in `client/src/features/trip-setup/formSchema.ts` parses the raw input strings, reuses these rules, and adds one browser-only rule: the start date can't be in the past (in the user's time zone).
+
+What the user types on `/plan` is kept in a draft (`TripDraftProvider`) while they move between pages in the same tab. A full reload starts empty; trips are saved for real in a later step.
+
+## Styling
+
+- **Tailwind CSS v4** runs through the `@tailwindcss/vite` plugin. There is no `tailwind.config.js`; the configuration lives in CSS.
+- **Design tokens** live in one place: the `@theme` block in `client/src/index.css`. It holds the colors, fonts, radii and shadow, and they are available as utilities such as `bg-canvas`, `text-muted`, `bg-primary`, `font-display` and `rounded-card`.
+- **The app has a single light theme on purpose**, so it ignores the operating system's dark-mode setting.
+- **Contrast is tested.** `client/src/theme/contrast.test.ts` reads the tokens from `index.css` and checks every text and background pair against WCAG AA. If a token change breaks contrast, `npm test` fails.
+- **Fonts** are Fraunces (headings) and Inter (UI text). They are self-hosted through Fontsource, so no requests go to external font services.
+- **Build pages from the primitives** in `client/src/components/ui/` instead of one-off styles. Page titles use `PageHeading`, because the layout moves focus to it after navigation.
+- **Don't animate `outline-color`.** Avoid the bare `transition` utility on focusable elements and list the animated properties explicitly, for example `transition-[color,background-color]`. Otherwise the focus ring fades in from the text color.
