@@ -151,7 +151,7 @@ When the user submits a valid form, the application SHALL produce normalized tri
 - **THEN** the trip preferences have the destination "Lisbon", no starting point and the interests "wine" and "markets" in that order
 
 ### Requirement: Trip review
-After a valid submission, the application SHALL show a review of the trip preferences: the trip length in days, the budget formatted in the chosen currency, the number of travelers, and "Not specified" for a missing starting point and "None" for an empty interests list. The review SHALL offer an "Edit details" action that returns to the form with all values kept, and SHALL say that itinerary generation is the next step.
+After a valid submission, the application SHALL show a review of the trip preferences: the trip length in days, the budget formatted in the chosen currency, the number of travelers, and "Not specified" for a missing starting point and "None" for an empty interests list. The review SHALL offer an "Edit details" action that returns to the form with all values kept, and a "Generate itinerary" action that starts generation.
 
 #### Scenario: Summary after submitting
 - **WHEN** a user submits Lisbon from Kyiv, 2026-11-10 to 2026-11-12, budget 1500 EUR, 2 travelers, style food, pace relaxed, interests "wine" and "markets"
@@ -164,6 +164,10 @@ After a valid submission, the application SHALL show a review of the trip prefer
 #### Scenario: Editing after the summary
 - **WHEN** a user activates "Edit details" on the review
 - **THEN** the form is shown again with every previously entered value, including the selected style, pace and interests
+
+#### Scenario: Generation offered
+- **WHEN** the review is shown
+- **THEN** it offers a "Generate itinerary" button and no "coming soon" note
 
 ### Requirement: Starting point
 The "Starting from" field SHALL be optional. An empty or whitespace-only value SHALL mean "not provided". A provided value SHALL be 2 to 100 characters long after trimming. The field SHALL explain that it is used to plan the arrival and departure days.

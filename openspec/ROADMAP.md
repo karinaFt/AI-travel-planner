@@ -33,7 +33,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | done (archived 2026-10-27) |
 | 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | done (archived 2026-10-30) |
 | 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | done (archived 2026-10-30) |
-| 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | |
+| 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | done (archived 2026-10-30) |
 | 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | |
 | 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math                             | |
 | 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
@@ -98,6 +98,11 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - the README states that these measures do not make the app fully secure;
   - built (2026-10-30): limits live in the memory of one process (`server/src/protection.ts`); the client IP is the socket address unless `TRUST_PROXY` names the proxies in front;
   - step 9 adds the 45 s client timeout and cancel, and should show `RATE_LIMITED` (with `Retry-After`), `GENERATION_IN_PROGRESS` and `AI_TIMEOUT` clearly.
+- **Generation in the client (step 9, built 2026-10-30):**
+  - `client/src/api/http.ts` `postJson` never throws; it returns `ApiResult<T>` with failure kinds `api`, `network`, `timeout`, `cancelled` and `invalid-response`. A success body must pass `tripSchema`;
+  - `useGeneration` lives in `PlanPage`; after a `429` the error panel counts down `Retry-After` before "Try again" is enabled;
+  - on success the trip is saved in an in-memory `TripStore` (`client/src/features/trips/`) and the app opens `/trips/:id` (`client/src/pages/TripPage.tsx`), a minimal summary that shows "Trip not found" after a reload. Step 10 replaces the page; step 13 swaps the store for localStorage behind the same `get`/`save` interface;
+  - `vite preview` proxies `/api` like the dev server.
 - **Money (step 11):** sums are done in integer hundredths. Currencies are never summed or converted. Only trip-currency activities count toward "remaining".
 - **Editing (step 12):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
 - **Saving (step 13):**
