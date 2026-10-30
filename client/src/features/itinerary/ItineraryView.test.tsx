@@ -28,12 +28,13 @@ const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${nam
 const panel = () => screen.getByRole('tabpanel')
 
 describe('trip overview', () => {
-  it('shows the trip facts, the estimated cost and the budget', () => {
+  it('shows the trip facts, leaving the budget and costs to the budget summary', () => {
     renderTripPage(tripFixture())
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeInTheDocument()
+    const heading = screen.getByRole('heading', { level: 1, name: 'Lisbon' })
     const facts = Object.fromEntries(
-      screen.getAllByRole('term').map((term) => [term.textContent, term.nextElementSibling?.textContent]),
+      within(heading.closest('header')!)
+        .getAllByRole('term').map((term) => [term.textContent, term.nextElementSibling?.textContent]),
     )
     expect(facts).toEqual({
       Dates: '10 Nov 2026 – 12 Nov 2026 · 3 days',
@@ -41,8 +42,6 @@ describe('trip overview', () => {
       Style: 'Food',
       Pace: 'Relaxed',
       'Starting from': 'Kyiv',
-      'Estimated cost': '€120.00',
-      Budget: '€1,500.00',
     })
     expect(document.title).toBe('Lisbon trip · AI Travel Planner')
     expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
@@ -151,7 +150,7 @@ describe('day timeline', () => {
     renderTripPage(tripFixture({ days: [costs, [], []] }))
 
     expect(panel()).toHaveTextContent('3 activities · Estimated €20.29')
-    expect(screen.getByText('€20.29', { selector: 'dd' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Cost by day' })).toHaveTextContent('Total€20.29')
   })
 
   it('says when a day has no activities', async () => {

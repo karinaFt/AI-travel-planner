@@ -2,6 +2,7 @@ import { sumMoney, type Trip } from '@travel-planner/shared'
 import { ButtonLink } from '../../components/ui/ButtonLink.tsx'
 import { Card } from '../../components/ui/Card.tsx'
 import { Container } from '../../components/ui/Container.tsx'
+import { BudgetSummary } from '../budget/BudgetSummary.tsx'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.ts'
 import { DayTabs } from './DayTabs.tsx'
 import { DayTimeline } from './DayTimeline.tsx'
@@ -11,16 +12,24 @@ import { useSelectedDay } from './useSelectedDay.ts'
 /** The day-by-day view of a generated trip. */
 export function ItineraryView({ trip }: { trip: Trip }) {
   const { days } = trip.itinerary
-  const { destination, currency } = trip.preferences
+  const { destination, budget, currency } = trip.preferences
   const [selected, selectDay] = useSelectedDay(days.length)
   useDocumentTitle(`${destination} trip`)
 
   const dayCosts = days.map((day) => sumMoney(day.activities.map((activity) => activity.estimatedCost)))
+  const estimatedCost = sumMoney(dayCosts)
   const day = days[selected - 1]
 
   return (
     <Container className="py-12 sm:py-16">
-      <TripOverview trip={trip} estimatedCost={sumMoney(dayCosts)} />
+      <TripOverview trip={trip} />
+      <BudgetSummary
+        budget={budget}
+        currency={currency}
+        days={days}
+        dayCosts={dayCosts}
+        estimatedCost={estimatedCost}
+      />
       <Card as="section" aria-label="Itinerary" className="mt-10">
         <DayTabs days={days} selected={selected} onSelect={selectDay} />
         {/* A new key per day collapses every activity's details when the day changes. */}

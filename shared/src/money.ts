@@ -7,3 +7,8 @@ export function sumMoney(amounts: readonly number[]) {
   for (const amount of amounts) hundredths += Math.round(amount * 100)
   return hundredths / 100
 }
+
+/** The exact difference `a - b` of two money amounts with at most 2 decimals, via integer hundredths. */
+export function subtractMoney(a: number, b: number) {
+  return (Math.round(a * 100) - Math.round(b * 100)) / 100
+}

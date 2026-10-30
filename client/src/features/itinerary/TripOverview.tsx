@@ -1,19 +1,17 @@
 import { tripLengthInDays, type Trip } from '@travel-planner/shared'
 import { PageHeading } from '../../components/ui/PageHeading.tsx'
-import { formatDate, formatMoney, plural } from '../trip-setup/format.ts'
+import { formatDate, plural } from '../trip-setup/format.ts'
 import { paceTitle, travelStyleTitle } from '../trip-setup/styleOptions.ts'
 
-/** The trip's heading and key facts, with the estimated cost of the whole trip next to the budget. */
-export function TripOverview({ trip, estimatedCost }: { trip: Trip; estimatedCost: number }) {
-  const { destination, origin, startDate, endDate, travelers, travelStyle, pace, budget, currency } = trip.preferences
+/** The trip's heading and key facts. The budget and costs are in the budget summary. */
+export function TripOverview({ trip }: { trip: Trip }) {
+  const { destination, origin, startDate, endDate, travelers, travelStyle, pace } = trip.preferences
   const facts: Array<[label: string, value: string]> = [
     ['Dates', `${formatDate(startDate)} – ${formatDate(endDate)} · ${plural(tripLengthInDays(startDate, endDate), 'day', 'days')}`],
     ['Travelers', plural(travelers, 'traveler', 'travelers')],
     ['Style', travelStyleTitle(travelStyle)],
     ['Pace', paceTitle(pace)],
     ...(origin ? [['Starting from', origin] as [string, string]] : []),
-    ['Estimated cost', formatMoney(estimatedCost, currency)],
-    ['Budget', formatMoney(budget, currency)],
   ]
 
   return (

@@ -42,6 +42,10 @@ const pairs: Array<[string, string, number]> = [
   ['coral', 'canvas', NON_TEXT],
   ['line-strong', 'surface', NON_TEXT],
   ['line-strong', 'canvas', NON_TEXT],
+  // The budget bar: its fill against the track, and the over-budget fill and border on the card.
+  ['primary', 'line', NON_TEXT],
+  ['coral-text', 'line', NON_TEXT],
+  ['coral', 'surface', NON_TEXT],
 ]
 
 describe('contrastRatio', () => {
