@@ -2,22 +2,22 @@
 
 Plan a multi-day trip with AI. You enter your travel preferences, get a day-by-day itinerary, adjust the activities and their estimated costs, and keep your trips in the browser. It is a single-page React application built with Vite and TypeScript, backed by a small Express API.
 
-The AI provider needs a secret API key, so the browser never calls it directly. Requests flow from the React client to the Express API, which (from a later step) calls Gemini and returns the result:
+The AI provider needs a secret API key, so the browser never calls it directly. Requests flow from the React client to the Express API, which calls Gemini, validates the answer and returns the trip:
 
 ```
-React client  →  Express API (/api)  →  Gemini (later step)
+React client  →  Express API (/api)  →  Gemini
 ```
 
 ## Prerequisites
 
-- Node.js `^20.19.0 || >=22.12.0` (the range Vite requires)
+- Node.js `>=22.12.0` (Node 20 is end-of-life; the Gemini SDK announces Node 22+ for its next major version)
 - npm (ships with Node.js)
 
 ## Getting started
 
 ```sh
 npm ci
-cp server/.env.example server/.env   # optional: the defaults work without it
+cp server/.env.example server/.env   # optional: add GEMINI_API_KEY to enable generation
 npm run dev
 ```
 
@@ -38,10 +38,26 @@ The API reads its configuration from environment variables. For local values, co
 |---|---|---|
 | `PORT` | `3001` | Port the API listens on, a whole number from 1 to 65535. |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed by CORS, as `scheme://host[:port]` with no path or trailing slash. |
+| `GEMINI_API_KEY` | *(unset)* | Secret key for the Gemini API. Without it the API still runs, but generation answers `503 AI_UNAVAILABLE`. Never logged. |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Gemini model used for itineraries. Flash-Lite has the most free quota; a larger model such as `gemini-3.8-flash` writes richer plans but has less free quota and is more often overloaded. |
 
 An invalid value stops the API at startup with exit code 1 and a message naming the variable (the value itself is never printed).
 
 `API_PROXY_TARGET` (default `http://localhost:3001`) is read by the Vite dev server, not the API. It only changes where the client's `/api` proxy points.
+
+### Free Gemini API key
+
+Itinerary generation uses Google's Gemini API on its **free tier**. The app needs no paid service.
+
+1. Sign in to [Google AI Studio](https://aistudio.google.com/) with a Google account.
+2. Open **Get API key** and create a key. Let AI Studio create a new project for it, and **don't set up billing** for that project. Without billing, the key stays on the free tier and can't be charged.
+3. Put the key in `server/.env` as `GEMINI_API_KEY=...` and restart `npm run dev`. The `listening` log line then shows `"generation":"enabled"`.
+
+Know the free tier's limits:
+
+- **Quota**: requests per minute and per day are limited and vary by model; see the [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits). When the quota runs out, generation answers `503 AI_UNAVAILABLE` ("busy right now") until it resets. The default Flash-Lite model has more free quota than the larger Flash models.
+- **Data use**: on the free tier, Google may use prompts and responses to improve its products. The app sends only the trip preferences, so don't put personal details in them.
+- Keep the key out of git and chats. If it leaks, delete it in AI Studio and create a new one.
 
 ## Scripts
 
@@ -68,6 +84,7 @@ shared/               Isomorphic code workspace (@travel-planner/shared)
   src/trip-basics.ts  Trip basics schema (Zod), currencies, limits, messages
   src/trip-preferences.ts  Full trip preferences: basics + starting point, style, pace, interests
   src/dates.ts        YYYY-MM-DD helpers (date-fns)
+  src/itinerary.ts    Activity, day, itinerary and trip schemas (the generate response)
 client/               Frontend workspace (@travel-planner/client)
   package.json        Frontend dependencies and scripts
   index.html          HTML entry point
@@ -95,9 +112,11 @@ server/               API workspace (@travel-planner/server): Express 5
   src/
     index.ts          Entry point: loads server/.env, validates config, listens
     app.ts            createApp(): middleware order and routes
-    config.ts         Environment validation (PORT, ALLOWED_ORIGINS)
+    config.ts         Environment validation (PORT, ALLOWED_ORIGINS, GEMINI_*)
+    ai/               Itinerary generation: model port, Gemini adapter, prompt, response
+                      schema, normalization of the model output
     http/             Request ID, request logging, JSON body handling, error envelope
-    routes/           One router per endpoint group (health)
+    routes/           One router per endpoint group (health, itineraries)
 openspec/             Specs, change proposals and the MVP roadmap (OpenSpec)
 ```
 
@@ -108,10 +127,80 @@ The API serves everything under `/api`. Successful responses have the body `{ "d
 | Endpoint | Response |
 |---|---|
 | `GET /api/health` | `200 { "data": { "status": "ok" } }` |
+| `POST /api/itineraries/generate` | `200 { "data": { "trip": … } }`, see below |
 
 Every response carries an `X-Request-Id` header with a server-generated ID (an ID sent by the client is ignored). Each request is logged as one JSON line with the method, path, status, duration in ms, request ID and, for errors, the error code. Request and response bodies and query strings are never logged.
 
 Endpoints that take a body accept only `application/json`, up to 10 KB.
+
+### Generating an itinerary
+
+`POST /api/itineraries/generate` takes the trip preferences, validated with the shared `tripPreferencesSchema` (see [Shared code](#shared-code)):
+
+```json
+{
+  "destination": "Lisbon",
+  "origin": "Kyiv",
+  "startDate": "2026-11-10",
+  "endDate": "2026-11-12",
+  "budget": 1500,
+  "currency": "EUR",
+  "travelers": 2,
+  "travelStyle": "food",
+  "pace": "relaxed",
+  "interests": ["wine", "markets"]
+}
+```
+
+It returns a trip, which passes the shared `tripSchema` (`shared/src/itinerary.ts`):
+
+```json
+{
+  "data": {
+    "trip": {
+      "id": "6f1c…",
+      "createdAt": "2026-10-27T10:00:00.000Z",
+      "preferences": { "destination": "Lisbon", "…": "…" },
+      "itinerary": {
+        "days": [
+          {
+            "id": "b2e4…",
+            "dayNumber": 1,
+            "date": "2026-11-10",
+            "title": "Arrival and Alfama",
+            "activities": [
+              {
+                "id": "0d9a…",
+                "title": "Airport to the city",
+                "description": "Take the metro red line from the airport…",
+                "category": "transport",
+                "startTime": "14:00",
+                "durationMinutes": 45,
+                "estimatedCost": 3.7,
+                "currency": "EUR"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+- **Days:** one per trip date, numbered from 1.
+- **Activities:** sorted by `startTime` (`HH:mm`). `durationMinutes` is 5–1440. `estimatedCost` is for the whole group, in the trip currency, with at most 2 decimals. `category` is one of sightseeing, culture, food, nature, adventure, relaxation, shopping, nightlife, transport, other.
+- **Server-owned fields:** the model returns content only. The server assigns IDs, dates and day numbers and sets the currency. It also trims text, rounds costs to cents and maps unknown categories to `other`.
+- **Starting point:** with a starting point, the first and last days are lighter and day 1 starts with tips for getting from the arrival point. Flights and other travel to the destination are never planned or priced, and the budget covers the stay only.
+
+How it can fail:
+
+| Response | When |
+|---|---|
+| `400 VALIDATION_ERROR` | The preferences are invalid. `details.fields` maps each field path (or `body`) to its message. The past-date rule is client-only. |
+| `502 AI_INVALID_RESPONSE` | The model's answer is not JSON, has the wrong number of days or fails the trip schema. There is no automatic retry. |
+| `502 AI_PROVIDER_ERROR` | Gemini or the network failed. |
+| `503 AI_UNAVAILABLE` | No `GEMINI_API_KEY` is set, or Gemini is rate limited or overloaded (including exhausted free-tier quota). |
 
 ### Errors
 
@@ -135,10 +224,10 @@ The codes, their statuses and messages live in `shared/src/api.ts` (`ERROR_CODES
 | `INTERNAL_ERROR` | 500 | Anything unexpected; details stay in the server log |
 | `AI_INVALID_RESPONSE` | 502 | The AI returned an unusable itinerary |
 | `AI_PROVIDER_ERROR` | 502 | The AI provider failed |
-| `AI_UNAVAILABLE` | 503 | The AI provider is overloaded |
+| `AI_UNAVAILABLE` | 503 | No API key is set, or the AI provider is rate limited, out of free quota or overloaded |
 | `AI_TIMEOUT` | 504 | Generation took too long |
 
-The 409, 429 and AI codes are part of the contract now, but they are first returned when itinerary generation arrives in later steps.
+`GENERATION_IN_PROGRESS`, `RATE_LIMITED` and `AI_TIMEOUT` are part of the contract already, but they are first returned in a later step (generation protection).
 
 ### Security
 

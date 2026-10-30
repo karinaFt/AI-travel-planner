@@ -2,10 +2,17 @@ import { z } from 'zod'
 
 export const DEFAULT_PORT = 3001
 export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = ['http://localhost:5173']
+/** On the Gemini free tier: fast, with more free quota than the larger Flash models. */
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
 
 export type Config = {
   port: number
   allowedOrigins: readonly string[]
+  gemini: {
+    /** Secret: never log or echo it. Unset means generation is disabled. */
+    apiKey?: string
+    model: string
+  }
 }
 
 /** One line per invalid variable. Messages never include the rejected value. */
@@ -13,6 +20,7 @@ const MESSAGES = {
   PORT: 'PORT must be a whole number from 1 to 65535',
   ALLOWED_ORIGINS:
     'ALLOWED_ORIGINS must be a comma-separated list of http(s) origins without a path, such as http://localhost:5173',
+  GEMINI_MODEL: `GEMINI_MODEL must be a model name such as ${DEFAULT_GEMINI_MODEL}`,
 } as const
 
 type Variable = keyof typeof MESSAGES
@@ -58,6 +66,16 @@ const envSchema = z.object({
       .pipe(z.array(z.string().refine(isHttpOrigin)).min(1))
       .optional(),
   ),
+  // No format check: key formats change. Blank counts as unset.
+  GEMINI_API_KEY: z.preprocess(unsetIfBlank, z.string().trim().optional()),
+  GEMINI_MODEL: z.preprocess(
+    unsetIfBlank,
+    z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/)
+      .optional(),
+  ),
 })
 
 /** Reads and validates the server configuration from an environment object. Throws `ConfigError`. */
@@ -70,5 +88,18 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   return {
     port: result.data.PORT ?? DEFAULT_PORT,
     allowedOrigins: result.data.ALLOWED_ORIGINS ?? DEFAULT_ALLOWED_ORIGINS,
+    gemini: {
+      apiKey: result.data.GEMINI_API_KEY,
+      model: result.data.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
+    },
   }
+}
+
+/** Fields for the startup log line. Never includes the API key. */
+export function startupSummary(config: Config) {
+  return {
+    url: `http://localhost:${config.port}`,
+    model: config.gemini.model,
+    generation: config.gemini.apiKey ? 'enabled' : 'disabled',
+  } as const
 }

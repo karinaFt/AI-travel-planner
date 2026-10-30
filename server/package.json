@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --sourcemap --outfile=dist/index.cjs",
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --platform=node --target=node22 --format=cjs --sourcemap --outfile=dist/index.cjs",
     "start": "node --enable-source-maps dist/index.cjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@google/genai": "^2.31.0",
     "@travel-planner/shared": "^0.0.0",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",

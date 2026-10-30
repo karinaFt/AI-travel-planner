@@ -1,7 +1,8 @@
 // API server entry point: load config, build the app, listen.
 import dotenv from 'dotenv'
+import { createGeminiModel } from './ai/gemini.ts'
 import { createApp } from './app.ts'
-import { ConfigError, loadConfig, type Config } from './config.ts'
+import { ConfigError, loadConfig, startupSummary, type Config } from './config.ts'
 import { createLogger } from './http/logger.ts'
 
 // npm runs workspace scripts from server/, so this reads server/.env. Variables already set win.
@@ -20,7 +21,13 @@ function readConfig(): Config {
 const config = readConfig()
 const log = createLogger()
 
-createApp({ config, log }).listen(config.port, (error) => {
+const { apiKey, model } = config.gemini
+const itineraryModel = apiKey ? createGeminiModel({ apiKey, model }) : undefined
+if (!itineraryModel) {
+  log({ event: 'warning', message: 'GEMINI_API_KEY is not set; itinerary generation is disabled' })
+}
+
+createApp({ config, log, itineraryModel }).listen(config.port, (error) => {
   if (error) throw error
-  log({ event: 'listening', url: `http://localhost:${config.port}` })
+  log({ event: 'listening', ...startupSummary(config) })
 })

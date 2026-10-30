@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { ConfigError, DEFAULT_ALLOWED_ORIGINS, DEFAULT_PORT, loadConfig } from './config.ts'
+import {
+  ConfigError,
+  DEFAULT_ALLOWED_ORIGINS,
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_PORT,
+  loadConfig,
+  startupSummary,
+} from './config.ts'
 
 /** The error `loadConfig` throws for this env, or undefined if it accepts it. */
 function configError(env: Record<string, string>) {
@@ -14,13 +21,19 @@ function configError(env: Record<string, string>) {
 
 describe('loadConfig', () => {
   it('applies the defaults when nothing is set', () => {
-    expect(loadConfig({})).toEqual({ port: 3001, allowedOrigins: ['http://localhost:5173'] })
+    expect(loadConfig({})).toEqual({
+      port: 3001,
+      allowedOrigins: ['http://localhost:5173'],
+      gemini: { apiKey: undefined, model: 'gemini-3.5-flash-lite' },
+    })
     expect(DEFAULT_PORT).toBe(3001)
     expect(DEFAULT_ALLOWED_ORIGINS).toEqual(['http://localhost:5173'])
   })
 
   it('treats blank variables as unset', () => {
-    expect(loadConfig({ PORT: '', ALLOWED_ORIGINS: '  ' })).toEqual(loadConfig({}))
+    expect(loadConfig({ PORT: '', ALLOWED_ORIGINS: '  ', GEMINI_API_KEY: ' ', GEMINI_MODEL: '' })).toEqual(
+      loadConfig({}),
+    )
   })
 
   it('reads a valid port', () => {
@@ -62,5 +75,32 @@ describe('loadConfig', () => {
     expect(lines).toHaveLength(2)
     expect(lines?.[0]).toMatch(/^PORT /)
     expect(lines?.[1]).toMatch(/^ALLOWED_ORIGINS /)
+  })
+
+  it('reads the Gemini key and model', () => {
+    expect(loadConfig({ GEMINI_API_KEY: ' test-key-123 ', GEMINI_MODEL: 'gemini-3.8-flash' }).gemini).toEqual({
+      apiKey: 'test-key-123',
+      model: 'gemini-3.8-flash',
+    })
+    expect(loadConfig({ GEMINI_MODEL: 'models/gemini-3.8-flash' }).gemini.model).toBe('models/gemini-3.8-flash')
+    expect(DEFAULT_GEMINI_MODEL).toBe('gemini-3.5-flash-lite')
+  })
+
+  it.each(['my model', '-leading-dash', 'gemini?flash', 'x'.repeat(101)])(
+    'rejects GEMINI_MODEL=%s without echoing it',
+    (model) => {
+      const error = configError({ GEMINI_MODEL: model })
+      expect(error?.message).toMatch(/^GEMINI_MODEL must be/)
+      expect(error?.message).not.toContain(model)
+    },
+  )
+})
+
+describe('startupSummary', () => {
+  it('reports the model and whether generation is enabled, never the key', () => {
+    const withKey = startupSummary(loadConfig({ GEMINI_API_KEY: 'secret-key-value' }))
+    expect(withKey).toEqual({ url: 'http://localhost:3001', model: 'gemini-3.5-flash-lite', generation: 'enabled' })
+    expect(JSON.stringify(withKey)).not.toContain('secret-key-value')
+    expect(startupSummary(loadConfig({})).generation).toBe('disabled')
   })
 })

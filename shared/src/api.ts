@@ -26,6 +26,9 @@ export type ApiErrorCode = keyof typeof ERROR_CODES
 
 const errorCodeNames = Object.keys(ERROR_CODES) as [ApiErrorCode, ...ApiErrorCode[]]
 
+/** `details` of a `VALIDATION_ERROR`: the first message per invalid field path (`body` for the body itself). */
+export type ValidationErrorDetails = { fields: Record<string, string> }
+
 /** Successful response body. */
 export type ApiSuccess<T> = { data: T }
 
