@@ -30,8 +30,8 @@ Persistence: browser localStorage only. No database, no auth.
 | 3 | `add-design-foundation` | Tailwind tokens, fonts, UI primitives, website color palette – light, modern, pleasant colors, landing page    | done (archived 2026-10-21) |
 | 4 | `add-trip-form-basics` | `shared/` workspace with trip preferences schema; form: destination, dates, budget, currency, travelers<br/>        | done (archived 2026-10-22) |
 | 5 | `add-trip-style-and-interests` | Optional "Starting from", style, pace, interests, review step, draft retention                                 | done (archived 2026-10-27) |
-| 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | |
-| 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | |
+| 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | done (archived 2026-10-27) |
+| 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | done (archived 2026-10-30) |
 | 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | |
 | 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | |
 | 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | |
@@ -67,7 +67,10 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - when "Starting from" is given, the prompt asks for a lighter first and last day (arrival and departure) and tips for getting from the arrival point. It never asks for flights, tickets or prices of travel to the destination;
   - the server assigns IDs, dates, day numbers and the trip currency, sorts by start time, and maps unknown categories to `other`;
   - a wrong day count or a schema failure gives `502 AI_INVALID_RESPONSE` with no automatic retry;
-  - Gemini is called with JSON output and a schema, and Zod is always the final authority.
+  - Gemini is called with JSON output and a schema, and Zod is always the final authority;
+  - the response is a `Trip` (`id`, `createdAt`, `preferences`, `itinerary`), stored and shown as is in steps 9–13; `VALIDATION_ERROR` details are `{ fields: { "<path>": "<message>" } }`.
+- **Running cost (step 7, decided 2026-10-27):** the app must stay completely free. Gemini runs on the free tier: an AI Studio key in a project without billing. The default model is `gemini-3.5-flash-lite` (switched from `gemini-3.8-flash` on 2026-10-30, which was overloaded on the free tier), overridable with `GEMINI_MODEL`. A missing `GEMINI_API_KEY` doesn't stop the server; generation answers `503 AI_UNAVAILABLE`.
+- **Platform (step 7):** Node.js 22.12+ (Node 20 is end-of-life), `@google/genai` 2.x; its 3.0 announces Node 22+.
 - **Error envelope (step 6):** `{ error: { code, message, requestId, details? } }`, with an `X-Request-Id` header. The codes are:
 
   | Code | Status |

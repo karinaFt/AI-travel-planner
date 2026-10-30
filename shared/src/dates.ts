@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, format, isValid, parseISO } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, isValid, parseISO } from 'date-fns'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -14,4 +14,12 @@ export function isIsoDate(value: unknown): value is string {
 /** Number of days a trip covers, counting both the start and the end date. */
 export function tripLengthInDays(startDate: string, endDate: string) {
   return differenceInCalendarDays(parseISO(endDate), parseISO(startDate)) + 1
+}
+
+/** Every date of a trip as YYYY-MM-DD, from the start to the end date inclusive. */
+export function tripDates(startDate: string, endDate: string) {
+  const start = parseISO(startDate)
+  return Array.from({ length: Math.max(tripLengthInDays(startDate, endDate), 0) }, (_, index) =>
+    format(addDays(start, index), 'yyyy-MM-dd'),
+  )
 }

@@ -1,5 +1,27 @@
-// Isomorphic code shared by the client and (later) the server.
-export { isIsoDate, tripLengthInDays } from './dates.ts'
+// Isomorphic code shared by the client and the server.
+export {
+  ERROR_CODES,
+  apiErrorBodySchema,
+  type ApiErrorBody,
+  type ApiErrorCode,
+  type ApiSuccess,
+  type ValidationErrorDetails,
+} from './api.ts'
+export { isIsoDate, tripDates, tripLengthInDays } from './dates.ts'
+export {
+  ACTIVITY_CATEGORIES,
+  ACTIVITY_LIMITS,
+  START_TIME,
+  activitySchema,
+  daySchema,
+  itinerarySchema,
+  tripSchema,
+  type Activity,
+  type ActivityCategory,
+  type Day,
+  type Itinerary,
+  type Trip,
+} from './itinerary.ts'
 export {
   CURRENCIES,
   CURRENCY_NAMES,
