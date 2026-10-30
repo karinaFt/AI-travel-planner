@@ -28,7 +28,7 @@ All commands run from the repository root. It is an [npm workspaces](https://doc
 - the Vite client. Open the local URL it prints (by default http://localhost:5173/). Changes to files in `client/src/` show up in the browser without restarting it.
 - the API on http://localhost:3001. Saving a file in `server/src/` restarts it automatically.
 
-In development, Vite proxies every request to `/api` to the API, so the page calls `/api/...` on its own origin and CORS doesn't come into play. To point the proxy elsewhere, set `API_PROXY_TARGET` when starting the client, for example `API_PROXY_TARGET=http://localhost:4000 npm run dev`.
+In development and in `npm run preview`, Vite proxies every request to `/api` to the API, so the page calls `/api/...` on its own origin and CORS doesn't come into play. To point the proxy elsewhere, set `API_PROXY_TARGET` when starting the client, for example `API_PROXY_TARGET=http://localhost:4000 npm run dev`.
 
 ## Environment
 
@@ -44,7 +44,7 @@ The API reads its configuration from environment variables. For local values, co
 
 An invalid value stops the API at startup with exit code 1 and a message naming the variable (the value itself is never printed).
 
-`API_PROXY_TARGET` (default `http://localhost:3001`) is read by the Vite dev server, not the API. It only changes where the client's `/api` proxy points.
+`API_PROXY_TARGET` (default `http://localhost:3001`) is read by the Vite dev and preview servers, not the API. It only changes where the client's `/api` proxy points.
 
 ### Free Gemini API key
 
@@ -69,7 +69,7 @@ Know the free tier's limits:
 | `npm run dev:server` | Start only the API in watch mode. |
 | `npm run build` | Type-check every workspace, build the client into `client/dist/` and bundle the API into `server/dist/index.cjs`. |
 | `npm start` | Run the built API from `server/dist/` (run `npm run build` first). |
-| `npm run preview` | Serve the contents of `client/dist/` locally (run `npm run build` first). |
+| `npm run preview` | Serve the contents of `client/dist/` locally (run `npm run build` first), with `/api` proxied to the API like in development. |
 | `npm run typecheck` | Report TypeScript errors without writing any output. |
 | `npm run lint` | Lint the source with [oxlint](https://oxc.rs/docs/guide/usage/linter), including React hooks rules. |
 | `npm test` | Run the unit test suite once with Vitest and exit. |
@@ -93,7 +93,7 @@ client/               Frontend workspace (@travel-planner/client)
   public/             Static files copied as-is to the build
   src/
     main.tsx          Mounts the React app inside the browser router
-    App.tsx           Route table (/, /plan, not-found)
+    App.tsx           Route table (/, /plan, /trips/:id, not-found)
     App.test.tsx      App shell and navigation tests
     config.ts         App-wide constants (app name)
     layouts/          Page frame shared by all routes (header + main)
@@ -105,9 +105,13 @@ client/               Frontend workspace (@travel-planner/client)
     features/
       trip-setup/     Trip preferences form, its raw-input schema, style/pace/interests
                       fields, the review step and the draft kept for the tab session
+      generation/     Generate flow on the review: state hook, loading and error panels, messages
+      trips/          Generated trips kept in memory for the tab (TripStoreProvider)
+    api/              Typed API client: postJson() and generateItinerary()
     hooks/            Reusable hooks (document title)
     theme/            Contrast helper and the test that guards the token palette
-    test/             Test setup and helpers (jest-dom, renderWithRouter)
+    test/             Test setup and helpers (jest-dom, renderWithRouter, fetch mocks,
+                      a valid trip fixture)
 server/               API workspace (@travel-planner/server): Express 5
   .env.example        Every environment variable with its default
   src/
@@ -283,6 +287,15 @@ The trip preferences rules (`tripPreferencesSchema`, which extends `tripBasicsSc
 The form in `client/src/features/trip-setup/formSchema.ts` parses the raw input strings, reuses these rules, and adds one browser-only rule: the start date can't be in the past (in the user's time zone).
 
 What the user types on `/plan` is kept in a draft (`TripDraftProvider`) while they move between pages in the same tab. A full reload starts empty; trips are saved for real in a later step.
+
+### Generating an itinerary in the app
+
+The review step's **Generate itinerary** button sends the reviewed preferences to `POST /api/itineraries/generate` through `generateItinerary()` in `client/src/api/`. That client never throws: it returns the trip (checked against the shared `tripSchema`) or a typed failure.
+
+- **While waiting**, the review shows an announced "Generating your itinerary…" status and a **Cancel** button. Leaving the page also cancels the request.
+- **The client gives up after 45 seconds**, later than the API's own 30-second limit, to catch a hung connection.
+- **On failure**, an error panel shows a message users can act on, with **Try again** and **Edit details**. After `429 RATE_LIMITED`, **Try again** stays disabled until the `Retry-After` time has passed. After `400 VALIDATION_ERROR` only **Edit details** is offered. The reviewed values and the form draft are never lost.
+- **On success**, the trip is kept in memory for the tab (`TripStoreProvider`) and the app opens `/trips/<id>` with a short summary. The trip is gone after a reload, and that page then shows "Trip not found". The full itinerary view and saved trips come in later steps.
 
 ## Styling
 

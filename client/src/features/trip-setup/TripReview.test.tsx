@@ -40,7 +40,8 @@ describe('Trip review', () => {
     expect(reviewValue('Style')).toBe('Food')
     expect(reviewValue('Pace')).toBe('Relaxed')
     expect(reviewValue('Interests')).toBe('wine, markets')
-    expect(screen.getByText(/generate a day-by-day itinerary/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Generate itinerary' })).toBeInTheDocument()
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Review trip' })).not.toBeInTheDocument()
   })
 

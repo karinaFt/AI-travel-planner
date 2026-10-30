@@ -3,6 +3,7 @@ import { RootLayout } from './layouts/RootLayout.tsx'
 import { HomePage } from './pages/HomePage.tsx'
 import { NotFoundPage } from './pages/NotFoundPage.tsx'
 import { PlanPage } from './pages/PlanPage.tsx'
+import { TripPage } from './pages/TripPage.tsx'
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
       <Route element={<RootLayout />}>
         <Route index element={<HomePage />} />
         <Route path="plan" element={<PlanPage />} />
+        <Route path="trips/:id" element={<TripPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
