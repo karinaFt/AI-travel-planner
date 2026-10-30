@@ -34,7 +34,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | done (archived 2026-10-30) |
 | 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | done (archived 2026-10-30) |
 | 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | done (archived 2026-10-30) |
-| 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | |
+| 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | done (archived 2026-10-30) |
 | 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math                             | |
 | 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
 | 13 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
@@ -103,6 +103,11 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - `useGeneration` lives in `PlanPage`; after a `429` the error panel counts down `Retry-After` before "Try again" is enabled;
   - on success the trip is saved in an in-memory `TripStore` (`client/src/features/trips/`) and the app opens `/trips/:id` (`client/src/pages/TripPage.tsx`), a minimal summary that shows "Trip not found" after a reload. Step 10 replaces the page; step 13 swaps the store for localStorage behind the same `get`/`save` interface;
   - `vite preview` proxies `/api` like the dev server.
+- **Itinerary view (step 10, built 2026-10-30):**
+  - `client/src/features/itinerary/` holds the view: overview, day tabs (WAI-ARIA, arrows/Home/End), day timeline, activity details expanded in place;
+  - the selected day lives in `?day=N` (each change adds a history entry; an invalid value means day 1). `RootLayout` now moves focus only when the pathname changes, so query-only changes keep focus;
+  - day and trip costs use `sumMoney()` from `shared/src/money.ts` (integer hundredths). The overview shows the estimated trip cost next to the budget; step 11 adds remaining/over and per-currency totals and should reuse `sumMoney`;
+  - `App`/`RootLayout`/`TripStoreProvider` accept `initialTrips` for tests (`client/src/test/renderTripPage.tsx`).
 - **Money (step 11):** sums are done in integer hundredths. Currencies are never summed or converted. Only trip-currency activities count toward "remaining".
 - **Editing (step 12):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
 - **Saving (step 13):**

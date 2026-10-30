@@ -139,7 +139,7 @@ Every page SHALL start with a "Skip to content" link that is visible when focuse
 - **AND** activating it moves focus to the main content so the next Tab skips the header
 
 ### Requirement: Focus after navigation
-After in-app navigation to another page, focus SHALL move to that page's top-level heading so that assistive technology announces the new page. On the initial page load, focus SHALL stay at the browser's default position.
+After in-app navigation to another page, focus SHALL move to that page's top-level heading so that assistive technology announces the new page. On the initial page load, focus SHALL stay at the browser's default position. A navigation that changes only the query string of the current page SHALL NOT move focus.
 
 #### Scenario: Navigating with a link
 - **WHEN** a user activates "Plan a trip" in the header
@@ -148,6 +148,10 @@ After in-app navigation to another page, focus SHALL move to that page's top-lev
 #### Scenario: Initial load
 - **WHEN** a user opens `/` directly
 - **THEN** no element on the page is focused automatically
+
+#### Scenario: Query-only change
+- **WHEN** a control on a page changes only the URL's query string, such as choosing a day on the trip page
+- **THEN** focus stays on that control
 
 ### Requirement: Reduced motion
 Transitions and animations SHALL be disabled or reduced to a minimum when the user's system requests reduced motion.
