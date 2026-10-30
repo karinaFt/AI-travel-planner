@@ -1,3 +1,5 @@
+import { get, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { ERROR_CODES, apiErrorBodySchema } from '@travel-planner/shared'
 import { Router } from 'express'
 import request from 'supertest'
@@ -20,6 +22,8 @@ function testApp() {
   extraRoutes.get('/test/throw', () => {
     throw new Error(INTERNAL_DETAIL)
   })
+  // Never answers, so the client has to give up.
+  extraRoutes.get('/test/hang', () => {})
   return createApp({ config: loadConfig({}), log: createLogger((line) => lines.push(line)), extraRoutes })
 }
 
@@ -68,8 +72,17 @@ describe('error envelope', () => {
     expect(response.text).not.toContain('connection refused')
     expect(response.text).not.toContain('/srv/internal')
     expect(response.text).not.toMatch(/\bat\s.+:\d+:\d+/)
-    // The details stay server-side.
-    expect(consoleError).toHaveBeenCalledOnce()
+  })
+
+  it('logs one error line with the request ID, name and stack frames, but not the message', async () => {
+    const response = await request(testApp()).get('/api/test/throw')
+    const errorLines = lines.map((line) => JSON.parse(line)).filter((entry) => entry.event === 'error')
+    expect(errorLines).toHaveLength(1)
+    expect(errorLines[0]).toMatchObject({ requestId: response.headers['x-request-id'], name: 'Error' })
+    expect(errorLines[0].stack.length).toBeGreaterThan(0)
+    expect(errorLines[0].stack.every((frame: string) => frame.startsWith('at '))).toBe(true)
+    expect(lines.join('\n')).not.toContain('connection refused')
+    expect(consoleError).not.toHaveBeenCalled()
   })
 })
 
@@ -179,5 +192,24 @@ describe('request logging', () => {
   it('adds the error code to the log line of an error response', async () => {
     await request(testApp()).get('/api/does-not-exist')
     expect(JSON.parse(lines[0])).toMatchObject({ path: '/api/does-not-exist', status: 404, code: 'NOT_FOUND' })
+  })
+
+  it('logs one aborted line, without a status, when the client goes away first', async () => {
+    const server: Server = testApp().listen(0)
+    try {
+      const { port } = server.address() as AddressInfo
+      const client = get(`http://127.0.0.1:${port}/api/test/hang`)
+      client.on('error', () => {})
+      setTimeout(() => client.destroy(), 50)
+      await vi.waitFor(() => expect(lines).toHaveLength(1), { timeout: 2000 })
+      const entry = JSON.parse(lines[0])
+      expect(entry).toMatchObject({ method: 'GET', path: '/api/test/hang', aborted: true })
+      expect(entry).not.toHaveProperty('status')
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(lines).toHaveLength(1)
+    } finally {
+      server.closeAllConnections()
+      server.close()
+    }
   })
 })

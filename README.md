@@ -40,6 +40,7 @@ The API reads its configuration from environment variables. For local values, co
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated browser origins allowed by CORS, as `scheme://host[:port]` with no path or trailing slash. |
 | `GEMINI_API_KEY` | *(unset)* | Secret key for the Gemini API. Without it the API still runs, but generation answers `503 AI_UNAVAILABLE`. Never logged. |
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Gemini model used for itineraries. Flash-Lite has the most free quota; a larger model such as `gemini-3.8-flash` writes richer plans but has less free quota and is more often overloaded. |
+| `TRUST_PROXY` | `0` | Number of reverse proxies in front of the API, 0–10, used to find the client IP for rate limits. Keep `0` unless the API runs behind a proxy that sets `X-Forwarded-For`; see [Security](#security). |
 
 An invalid value stops the API at startup with exit code 1 and a message naming the variable (the value itself is never printed).
 
@@ -112,10 +113,12 @@ server/               API workspace (@travel-planner/server): Express 5
   src/
     index.ts          Entry point: loads server/.env, validates config, listens
     app.ts            createApp(): middleware order and routes
-    config.ts         Environment validation (PORT, ALLOWED_ORIGINS, GEMINI_*)
+    config.ts         Environment validation (PORT, ALLOWED_ORIGINS, GEMINI_*, TRUST_PROXY)
+    protection.ts     Generation limits: requests per minute and hour, AI timeout
     ai/               Itinerary generation: model port, Gemini adapter, prompt, response
                       schema, normalization of the model output
-    http/             Request ID, request logging, JSON body handling, error envelope
+    http/             Request ID, request logging, JSON body handling, error envelope,
+                      rate limit, one-generation-at-a-time guard
     routes/           One router per endpoint group (health, itineraries)
 openspec/             Specs, change proposals and the MVP roadmap (OpenSpec)
 ```
@@ -129,7 +132,7 @@ The API serves everything under `/api`. Successful responses have the body `{ "d
 | `GET /api/health` | `200 { "data": { "status": "ok" } }` |
 | `POST /api/itineraries/generate` | `200 { "data": { "trip": … } }`, see below |
 
-Every response carries an `X-Request-Id` header with a server-generated ID (an ID sent by the client is ignored). Each request is logged as one JSON line with the method, path, status, duration in ms, request ID and, for errors, the error code. Request and response bodies and query strings are never logged.
+Every response carries an `X-Request-Id` header with a server-generated ID (an ID sent by the client is ignored). Each request is logged as one JSON line with the method, path, status, duration in ms, request ID and, for errors, the error code. A request the client abandons is logged with `"aborted": true` instead of a status. Request and response bodies, query strings, prompts, model output and the API key are never logged. An unexpected error adds one `"event": "error"` line with the request ID, error name and stack frames, but not the error message, which could carry data.
 
 Endpoints that take a body accept only `application/json`, up to 10 KB.
 
@@ -198,9 +201,12 @@ How it can fail:
 | Response | When |
 |---|---|
 | `400 VALIDATION_ERROR` | The preferences are invalid. `details.fields` maps each field path (or `body`) to its message. The past-date rule is client-only. |
+| `409 GENERATION_IN_PROGRESS` | A generation from the same IP is still running. |
+| `429 RATE_LIMITED` | More than 5 requests in a minute or 30 in an hour from the same IP. `Retry-After` says how many seconds to wait. |
 | `502 AI_INVALID_RESPONSE` | The model's answer is not JSON, has the wrong number of days or fails the trip schema. There is no automatic retry. |
 | `502 AI_PROVIDER_ERROR` | Gemini or the network failed. |
 | `503 AI_UNAVAILABLE` | No `GEMINI_API_KEY` is set, or Gemini is rate limited or overloaded (including exhausted free-tier quota). |
+| `504 AI_TIMEOUT` | The model didn't answer within 30 seconds. There is no automatic retry. |
 
 ### Errors
 
@@ -227,12 +233,31 @@ The codes, their statuses and messages live in `shared/src/api.ts` (`ERROR_CODES
 | `AI_UNAVAILABLE` | 503 | No API key is set, or the AI provider is rate limited, out of free quota or overloaded |
 | `AI_TIMEOUT` | 504 | Generation took too long |
 
-`GENERATION_IN_PROGRESS`, `RATE_LIMITED` and `AI_TIMEOUT` are part of the contract already, but they are first returned in a later step (generation protection).
-
 ### Security
 
-- **CORS** headers are sent only to origins in `ALLOWED_ORIGINS`, for `GET` and `POST` with the `Content-Type` header. CORS only restricts browsers. It doesn't stop other clients such as curl or scripts, which can still call the API directly.
-- **Security headers** come from [helmet](https://helmetjs.github.io/) (for example `X-Content-Type-Options: nosniff`), and `X-Powered-By` is turned off.
+The API has these protections. The generation limits live in `server/src/protection.ts`.
+
+| Protection | What it does |
+|---|---|
+| **Rate limit** | `POST /api/itineraries/generate` accepts at most **5 requests per minute and 30 per hour** per client IP, counting invalid requests too. Further requests get `429 RATE_LIMITED` with `Retry-After`, and responses carry `RateLimit` headers. Other routes are not limited. |
+| **One generation at a time** | While a generation for an IP is running, another one from the same IP gets `409 GENERATION_IN_PROGRESS`. The slot is freed when the generation ends, however it ends. |
+| **AI timeout** | A model call that takes longer than **30 seconds** is aborted and answers `504 AI_TIMEOUT`. If the client disconnects, the call is aborted too. |
+| **Body limit** | Only `application/json` bodies up to **10 KB** are accepted. |
+| **CORS** | Headers are sent only to origins in `ALLOWED_ORIGINS`, for `GET` and `POST` with the `Content-Type` header. |
+| **Security headers** | They come from [helmet](https://helmetjs.github.io/) (for example `X-Content-Type-Options: nosniff`), and `X-Powered-By` is turned off. |
+| **Log hygiene** | Logs never contain bodies, prompts, model output or the API key; tests check this on success and error paths. Error responses never include stack traces or provider messages. |
+
+**`TRUST_PROXY`.** Limits are keyed by client IP. With the default `0`, the API uses the connecting address and ignores `X-Forwarded-For`, so a client can't fake its IP to get around the limits. Behind a reverse proxy, such as a hosting platform's load balancer, every request comes from the proxy's address, so all users would share one limit. In that case set `TRUST_PROXY` to the number of proxies in front of the API, usually `1`. Never set it higher than the real number of proxies, or clients could fake their IP again.
+
+What this does **not** protect against:
+
+- **Counters are in memory.** They belong to one process and reset when the server restarts, and several server instances don't share them.
+- **IPs are a rough identity.** Many people behind one network (an office, a mobile carrier) share a limit, and an attacker can rotate IPs.
+- **CORS only restricts browsers.** Other clients such as curl or scripts can call the API directly.
+- **There are no accounts or authentication.** Anyone who can reach the API can use it within the limits.
+- **Gemini's own free-tier quota still applies.** It is shared by every user of the key, and an aborted call may still count against it.
+
+These measures reduce abuse and accidents; they do not make the app fully secure.
 
 ## Shared code
 

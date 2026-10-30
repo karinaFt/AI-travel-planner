@@ -24,6 +24,7 @@ describe('loadConfig', () => {
     expect(loadConfig({})).toEqual({
       port: 3001,
       allowedOrigins: ['http://localhost:5173'],
+      trustProxy: 0,
       gemini: { apiKey: undefined, model: 'gemini-3.5-flash-lite' },
     })
     expect(DEFAULT_PORT).toBe(3001)
@@ -31,7 +32,7 @@ describe('loadConfig', () => {
   })
 
   it('treats blank variables as unset', () => {
-    expect(loadConfig({ PORT: '', ALLOWED_ORIGINS: '  ', GEMINI_API_KEY: ' ', GEMINI_MODEL: '' })).toEqual(
+    expect(loadConfig({ PORT: '', ALLOWED_ORIGINS: '  ', GEMINI_API_KEY: ' ', GEMINI_MODEL: '', TRUST_PROXY: '' })).toEqual(
       loadConfig({}),
     )
   })
@@ -94,6 +95,20 @@ describe('loadConfig', () => {
       expect(error?.message).not.toContain(model)
     },
   )
+})
+
+describe('TRUST_PROXY', () => {
+  it('reads a proxy count from 0 to 10', () => {
+    expect(loadConfig({ TRUST_PROXY: '0' }).trustProxy).toBe(0)
+    expect(loadConfig({ TRUST_PROXY: ' 1 ' }).trustProxy).toBe(1)
+    expect(loadConfig({ TRUST_PROXY: '10' }).trustProxy).toBe(10)
+  })
+
+  it.each(['yes', 'true', '-1', '11', '1.5'])('rejects TRUST_PROXY=%s without echoing it', (value) => {
+    const error = configError({ TRUST_PROXY: value })
+    expect(error?.message).toMatch(/^TRUST_PROXY must be/)
+    expect(error?.message).not.toContain(value)
+  })
 })
 
 describe('startupSummary', () => {

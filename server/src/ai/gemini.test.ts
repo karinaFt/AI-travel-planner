@@ -73,6 +73,15 @@ describe('createGeminiModel', () => {
     expect(appError.cause).toBeUndefined()
   })
 
+  it('maps an aborted call to AI_TIMEOUT, not AI_PROVIDER_ERROR', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const abortError = Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })
+    const { client } = fakeClient({ error: abortError })
+    const appError = await rejection(model(client).generate(request, controller.signal))
+    expect(appError.code).toBe('AI_TIMEOUT')
+  })
+
   it.each([
     ['output cut off at the token limit', { text: '{"days":[', finishReason: 'MAX_TOKENS' }],
     ['blocked output', { text: undefined, finishReason: 'SAFETY' }],

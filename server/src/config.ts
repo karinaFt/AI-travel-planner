@@ -4,10 +4,15 @@ export const DEFAULT_PORT = 3001
 export const DEFAULT_ALLOWED_ORIGINS: readonly string[] = ['http://localhost:5173']
 /** On the Gemini free tier: fast, with more free quota than the larger Flash models. */
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
+/** Reverse proxies in front of the API. 0 trusts no `X-Forwarded-For`, so clients can't spoof their IP. */
+export const DEFAULT_TRUST_PROXY = 0
+export const MAX_TRUST_PROXY = 10
 
 export type Config = {
   port: number
   allowedOrigins: readonly string[]
+  /** Hops of `X-Forwarded-For` to trust, for `app.set('trust proxy', …)`. */
+  trustProxy: number
   gemini: {
     /** Secret: never log or echo it. Unset means generation is disabled. */
     apiKey?: string
@@ -21,6 +26,7 @@ const MESSAGES = {
   ALLOWED_ORIGINS:
     'ALLOWED_ORIGINS must be a comma-separated list of http(s) origins without a path, such as http://localhost:5173',
   GEMINI_MODEL: `GEMINI_MODEL must be a model name such as ${DEFAULT_GEMINI_MODEL}`,
+  TRUST_PROXY: `TRUST_PROXY must be a whole number of proxies from 0 to ${MAX_TRUST_PROXY}`,
 } as const
 
 type Variable = keyof typeof MESSAGES
@@ -76,6 +82,16 @@ const envSchema = z.object({
       .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/)
       .optional(),
   ),
+  TRUST_PROXY: z.preprocess(
+    unsetIfBlank,
+    z
+      .string()
+      .trim()
+      .regex(/^\d+$/)
+      .transform(Number)
+      .pipe(z.number().int().min(0).max(MAX_TRUST_PROXY))
+      .optional(),
+  ),
 })
 
 /** Reads and validates the server configuration from an environment object. Throws `ConfigError`. */
@@ -88,6 +104,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   return {
     port: result.data.PORT ?? DEFAULT_PORT,
     allowedOrigins: result.data.ALLOWED_ORIGINS ?? DEFAULT_ALLOWED_ORIGINS,
+    trustProxy: result.data.TRUST_PROXY ?? DEFAULT_TRUST_PROXY,
     gemini: {
       apiKey: result.data.GEMINI_API_KEY,
       model: result.data.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,

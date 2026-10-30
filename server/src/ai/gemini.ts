@@ -45,6 +45,8 @@ export function createGeminiModel({
           },
         })
       } catch (error) {
+        // An abort is ours (timeout or client gone), not a provider failure.
+        if (signal?.aborted) throw new AppError('AI_TIMEOUT')
         const unavailable = error instanceof ApiError && UNAVAILABLE_STATUSES.has(error.status)
         throw new AppError(unavailable ? 'AI_UNAVAILABLE' : 'AI_PROVIDER_ERROR')
       }

@@ -1,3 +1,5 @@
+import { request as httpRequest, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { ERROR_CODES, apiErrorBodySchema, tripSchema, type ApiErrorCode } from '@travel-planner/shared'
 import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -151,5 +153,72 @@ describe('POST /api/itineraries/generate', () => {
     expect(output).not.toContain(API_KEY)
     expect(output).not.toContain('Secret Island')
     expect(output).not.toContain('Tram 28')
+  })
+})
+
+/** A model that never answers on its own and records the signal of each call. */
+function hangingModel() {
+  const signals: (AbortSignal | undefined)[] = []
+  const generate = vi.fn<ItineraryModel['generate']>((_request, signal) => {
+    signals.push(signal)
+    return new Promise<string>(() => {})
+  })
+  return { generate, signals }
+}
+
+describe('AI timeout and client disconnect', () => {
+  const appWith = (model: ItineraryModel, timeoutMs: number) =>
+    createApp({
+      config: loadConfig({ GEMINI_API_KEY: API_KEY }),
+      log: createLogger((line) => lines.push(line)),
+      itineraryModel: model,
+      generationLimits: { timeoutMs },
+    })
+
+  it('answers 504 AI_TIMEOUT when the AI is too slow, aborts the call and frees the slot', async () => {
+    const model = hangingModel()
+    const target = appWith(model, 50)
+    expectError(await generate(target), 'AI_TIMEOUT')
+    expect(model.signals[0]?.aborted).toBe(true)
+
+    // The slot is free: the next request reaches the AI (and times out too).
+    expectError(await generate(target), 'AI_TIMEOUT')
+    expect(model.generate).toHaveBeenCalledTimes(2)
+  })
+
+  it('aborts the AI call and frees the slot when the client goes away, logging no error', async () => {
+    const model = hangingModel()
+    const server: Server = appWith(model, 10_000).listen(0)
+    try {
+      const { port } = server.address() as AddressInfo
+      const client = httpRequest({
+        host: '127.0.0.1',
+        port,
+        method: 'POST',
+        path: '/api/itineraries/generate',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      client.on('error', () => {})
+      client.end(JSON.stringify(lisbon))
+      await vi.waitFor(() => expect(model.generate).toHaveBeenCalledOnce())
+
+      client.destroy()
+      await vi.waitFor(() => expect(model.signals[0]?.aborted).toBe(true))
+      await vi.waitFor(() => expect(lines).toHaveLength(1))
+      expect(JSON.parse(lines[0])).toMatchObject({ path: '/api/itineraries/generate', aborted: true })
+
+      // Same client IP: the slot was released, so this request reaches the AI instead of getting 409.
+      const next = request(`http://127.0.0.1:${port}`).post('/api/itineraries/generate').send(lisbon)
+      next.then(
+        () => {},
+        () => {},
+      )
+      await vi.waitFor(() => expect(model.generate).toHaveBeenCalledTimes(2))
+      next.abort()
+      expect(lines.some((line) => JSON.parse(line).event === 'error')).toBe(false)
+    } finally {
+      server.closeAllConnections()
+      server.close()
+    }
   })
 })

@@ -6,7 +6,7 @@ declare global {
   namespace Express {
     interface Locals {
       requestId: string
-      /** Set by `errorHandler` so the request log can include it. */
+      /** Set by the error handler so the request log can include it. */
       errorCode?: ApiErrorCode
     }
   }
