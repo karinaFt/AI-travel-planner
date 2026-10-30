@@ -35,7 +35,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | done (archived 2026-10-30) |
 | 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | done (archived 2026-10-30) |
 | 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | done (archived 2026-10-30) |
-| 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math                             | |
+| 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, cost by day, exact money math                                     | done (archived 2026-10-30) |
 | 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
 | 13 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
 
@@ -106,9 +106,10 @@ These were agreed during planning. Re-check each one when proposing the step it 
 - **Itinerary view (step 10, built 2026-10-30):**
   - `client/src/features/itinerary/` holds the view: overview, day tabs (WAI-ARIA, arrows/Home/End), day timeline, activity details expanded in place;
   - the selected day lives in `?day=N` (each change adds a history entry; an invalid value means day 1). `RootLayout` now moves focus only when the pathname changes, so query-only changes keep focus;
-  - day and trip costs use `sumMoney()` from `shared/src/money.ts` (integer hundredths). The overview shows the estimated trip cost next to the budget; step 11 adds remaining/over and per-currency totals and should reuse `sumMoney`;
+  - day and trip costs use `sumMoney()` from `shared/src/money.ts` (integer hundredths). The overview shows the estimated trip cost next to the budget; step 11 adds remaining/over and cost by day and should reuse `sumMoney`;
   - `App`/`RootLayout`/`TripStoreProvider` accept `initialTrips` for tests (`client/src/test/renderTripPage.tsx`).
-- **Money (step 11):** sums are done in integer hundredths. Currencies are never summed or converted. Only trip-currency activities count toward "remaining".
+- **Money (step 11, revised 2026-10-30):** sums and differences are done in integer hundredths (`sumMoney`, `subtractMoney`). All amounts on a trip are in the trip currency, as `tripSchema` requires; nothing is converted and there are no per-currency totals (the user chose one currency per trip). Step 12 must keep new and edited activities in the trip currency.
+- **Budget summary (step 11, built 2026-10-30):** `client/src/features/budget/` holds `budgetSummary(budget, estimatedCost)` (pure: status within/over, difference, whole percent used) and the `BudgetSummary` card (amounts, meter, "Cost by day" table). `ItineraryView` computes the day costs once and passes them to the card and the timelines; step 12 only has to recompute them from the edited itinerary. The over-budget bar uses `coral-text`, because `coral` on the track fails 3:1.
 - **Editing (step 12):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
 - **Saving (step 13):**
   - auto-save on generation and on every edit, with no Save button;
