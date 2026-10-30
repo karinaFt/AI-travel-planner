@@ -7,8 +7,15 @@ import { TripStoreContext, type TripStore } from './tripStoreContext.ts'
  *
  * Trips are saved right before navigating to their page, which reads them on render, so a ref is enough.
  */
-export function TripStoreProvider({ children }: { children: ReactNode }) {
-  const trips = useRef(new Map<string, Trip>())
+export function TripStoreProvider({
+  initialTrips = [],
+  children,
+}: {
+  /** Trips the store starts with; used by tests. */
+  initialTrips?: readonly Trip[]
+  children: ReactNode
+}) {
+  const trips = useRef(new Map<string, Trip>(initialTrips.map((trip) => [trip.id, trip])))
   const [store] = useState<TripStore>(() => ({
     get: (id) => trips.current.get(id),
     save: (trip) => {

@@ -86,6 +86,7 @@ shared/               Isomorphic code workspace (@travel-planner/shared)
   src/trip-preferences.ts  Full trip preferences: basics + starting point, style, pace, interests
   src/dates.ts        YYYY-MM-DD helpers (date-fns)
   src/itinerary.ts    Activity, day, itinerary and trip schemas (the generate response)
+  src/money.ts        sumMoney(): exact sums of money amounts in integer hundredths
 client/               Frontend workspace (@travel-planner/client)
   package.json        Frontend dependencies and scripts
   index.html          HTML entry point
@@ -107,11 +108,12 @@ client/               Frontend workspace (@travel-planner/client)
                       fields, the review step and the draft kept for the tab session
       generation/     Generate flow on the review: state hook, loading and error panels, messages
       trips/          Generated trips kept in memory for the tab (TripStoreProvider)
+      itinerary/      The /trips/:id view: overview, day tabs, day timeline, activity details
     api/              Typed API client: postJson() and generateItinerary()
     hooks/            Reusable hooks (document title)
     theme/            Contrast helper and the test that guards the token palette
-    test/             Test setup and helpers (jest-dom, renderWithRouter, fetch mocks,
-                      a valid trip fixture)
+    test/             Test setup and helpers (jest-dom, renderWithRouter, renderTripPage,
+                      fetch mocks, a valid trip fixture)
 server/               API workspace (@travel-planner/server): Express 5
   .env.example        Every environment variable with its default
   src/
@@ -295,7 +297,16 @@ The review step's **Generate itinerary** button sends the reviewed preferences t
 - **While waiting**, the review shows an announced "Generating your itinerary…" status and a **Cancel** button. Leaving the page also cancels the request.
 - **The client gives up after 45 seconds**, later than the API's own 30-second limit, to catch a hung connection.
 - **On failure**, an error panel shows a message users can act on, with **Try again** and **Edit details**. After `429 RATE_LIMITED`, **Try again** stays disabled until the `Retry-After` time has passed. After `400 VALIDATION_ERROR` only **Edit details** is offered. The reviewed values and the form draft are never lost.
-- **On success**, the trip is kept in memory for the tab (`TripStoreProvider`) and the app opens `/trips/<id>` with a short summary. The trip is gone after a reload, and that page then shows "Trip not found". The full itinerary view and saved trips come in later steps.
+- **On success**, the trip is kept in memory for the tab (`TripStoreProvider`) and the app opens `/trips/<id>`. The trip is gone after a reload, and that page then shows "Trip not found". Saved trips come in a later step.
+
+### The trip page
+
+`/trips/<id>` shows the generated itinerary (`client/src/features/itinerary/`):
+
+- **Overview:** destination, dates, length, travelers, style, pace, starting point, the estimated cost of the whole trip and the budget.
+- **Day tabs:** one per day. The selected day is kept in the URL as `?day=N`, so Back returns to the previous day. A missing or invalid value shows day 1. The arrow keys, Home and End move between tabs, and choosing a day keeps keyboard focus on its tab.
+- **Day timeline:** the day's title, number of activities and estimated cost, then the activities in start-time order with time, category and cost. **Details** expands an activity in place to show its time range, duration, description and that the cost is for the whole group.
+- **Costs** are summed exactly with `sumMoney()` from `shared/`. Each activity cost is for the whole group, in the trip currency.
 
 ## Styling
 

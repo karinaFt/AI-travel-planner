@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { describe, expect, it } from 'vitest'
 import App from '../App.tsx'
 import { renderWithRouter } from '../test/renderWithRouter.tsx'
@@ -51,4 +52,33 @@ describe('Focus after navigation', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Plan a trip' })).toHaveFocus()
   })
+
+  it('keeps focus where it is when only the query changes', async () => {
+    const user = userEvent.setup()
+    renderWithRouter(
+      <StrictMode>
+        <App />
+        <QueryButton />
+      </StrictMode>,
+      { route: '/plan' },
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Change query' }))
+
+    expect(screen.getByTestId('search')).toHaveTextContent('?day=2')
+    expect(screen.getByRole('button', { name: 'Change query' })).toHaveFocus()
+  })
 })
+
+function QueryButton() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  return (
+    <>
+      <button type="button" onClick={() => navigate('?day=2')}>
+        Change query
+      </button>
+      <output data-testid="search">{location.search}</output>
+    </>
+  )
+}

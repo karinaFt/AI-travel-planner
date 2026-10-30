@@ -138,9 +138,14 @@ describe('generating from the review', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Lisbon' })).toBeInTheDocument()
     expect(screen.getByText(/10 Nov 2026 – 12 Nov 2026 · 3 days/)).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem').map((item) => item.textContent)).toEqual(
-      expect.arrayContaining(['Day 1Day title 1', 'Day 2Day title 2', 'Day 3Day title 3']),
-    )
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Day 1 Tue, 10 Nov',
+      'Day 2 Wed, 11 Nov',
+      'Day 3 Thu, 12 Nov',
+    ])
+    const panel = screen.getByRole('tabpanel', { name: /Day 1/ })
+    expect(panel).toHaveTextContent('Day title 1')
+    expect(within(panel).getByRole('heading', { level: 3, name: 'Lunch' })).toBeInTheDocument()
     expect(document.title).toBe('Lisbon trip · AI Travel Planner')
 
     // The form still holds the generated trip's values.

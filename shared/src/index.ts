@@ -22,6 +22,7 @@ export {
   type Itinerary,
   type Trip,
 } from './itinerary.ts'
+export { sumMoney } from './money.ts'
 export {
   CURRENCIES,
   CURRENCY_NAMES,
