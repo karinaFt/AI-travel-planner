@@ -32,7 +32,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 5 | `add-trip-style-and-interests` | Optional "Starting from", style, pace, interests, review step, draft retention                                 | done (archived 2026-10-27) |
 | 6 | `add-api-server` | `server/` workspace: Express, env config, `/api/health`, error envelope, CORS, helmet, `npm run dev` runs both | done (archived 2026-10-27) |
 | 7 | `add-itinerary-generation` | Itinerary schema, prompt, Gemini adapter, output validation and normalization, generate endpoint               | done (archived 2026-10-30) |
-| 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | |
+| 8 | `add-generation-protection` | Rate limit, one in-flight generation per client, timeouts, log hygiene, security notes in README               | done (archived 2026-10-30) |
 | 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | |
 | 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | |
 | 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, per-currency totals, exact money math                             | |
@@ -95,7 +95,9 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - AI timeout 30 s on the server, 45 s on the client;
   - CORS allow-list from `ALLOWED_ORIGINS`;
   - never log bodies, prompts, model output or keys;
-  - the README states that these measures do not make the app fully secure.
+  - the README states that these measures do not make the app fully secure;
+  - built (2026-10-30): limits live in the memory of one process (`server/src/protection.ts`); the client IP is the socket address unless `TRUST_PROXY` names the proxies in front;
+  - step 9 adds the 45 s client timeout and cancel, and should show `RATE_LIMITED` (with `Retry-After`), `GENERATION_IN_PROGRESS` and `AI_TIMEOUT` clearly.
 - **Money (step 11):** sums are done in integer hundredths. Currencies are never summed or converted. Only trip-currency activities count toward "remaining".
 - **Editing (step 12):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
 - **Saving (step 13):**
