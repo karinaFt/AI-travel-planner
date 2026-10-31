@@ -261,7 +261,7 @@ The API has these protections. The generation limits live in `server/src/protect
 | **Security headers** | They come from [helmet](https://helmetjs.github.io/) (for example `X-Content-Type-Options: nosniff`), and `X-Powered-By` is turned off. |
 | **Log hygiene** | Logs never contain bodies, prompts, model output or the API key; tests check this on success and error paths. Error responses never include stack traces or provider messages. |
 
-**`TRUST_PROXY`.** Limits are keyed by client IP. With the default `0`, the API uses the connecting address and ignores `X-Forwarded-For`, so a client can't fake its IP to get around the limits. Behind a reverse proxy, such as a hosting platform's load balancer, every request comes from the proxy's address, so all users would share one limit. In that case set `TRUST_PROXY` to the number of proxies in front of the API, usually `1`. Never set it higher than the real number of proxies, or clients could fake their IP again.
+**`TRUST_PROXY`.** Limits are keyed by client IP. With the default `0`, the API uses the connecting address and ignores `X-Forwarded-For`, so a client can't fake its IP to get around the limits. Behind a reverse proxy, such as a hosting platform's load balancer, every request comes from the proxy's address, so all users would share one limit. In that case set `TRUST_PROXY` to the number of proxies in front of the API (`3` on Render, see [Check the client IP once](#check-the-client-ip-once)). Never set it higher than the real number of proxies, or clients could fake their IP again.
 
 What this does **not** protect against:
 
@@ -341,7 +341,7 @@ The app runs on one **free** [Render](https://render.com/) web service. The API 
 | Start command | `npm start` (the API, from `server/`) |
 | Health check | `GET /api/health` |
 | `CLIENT_DIR` | `../client/dist`, so the API serves the client, and `/plan` and `/trips/<id>` load directly |
-| `TRUST_PROXY` | `1`, for Render's proxy; check it below |
+| `TRUST_PROXY` | `3`, the proxies Render puts in front of the service; check it below |
 | `GEMINI_API_KEY` | asked for when you create the Blueprint, never stored in the repository |
 
 Node.js comes from `.node-version` (24). Assets in `assets/` are cached for a year because their names change with every build; `index.html` is never cached, so a new deploy shows up on the next page load.
@@ -363,8 +363,10 @@ Rate limits are keyed by client IP, so the API must count Render's proxies corre
 1. In the service, open **Environment**, add `EXPOSE_CLIENT_IP` = `true`, and save. Render redeploys.
 2. Open `https://<name>.onrender.com/api/client-ip`. It shows `{"data":{"ip":"..."}}`.
 3. Compare that address with your own public IP, for example from a "what is my IP" site.
-   - If they match, `TRUST_PROXY=1` is right.
-   - If it shows a different (Render) address, raise `TRUST_PROXY` by one, save, and check again. Never set it higher than the value that first shows your IP.
+   - If they match, `TRUST_PROXY` is right.
+   - If it shows a Render-internal address such as `10.x.x.x`, raise `TRUST_PROXY` by one, save, and check again. Never set it higher than the value that first shows your IP.
+
+   Checked on 2026-10-31: `1` and `2` showed `10.x.x.x` addresses and `3` showed the real IP. With `3`, a faked `X-Forwarded-For` header is ignored.
 4. Remove `EXPOSE_CLIENT_IP`, or set it to `false`, and save.
 
 ### Changing settings later

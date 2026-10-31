@@ -13,9 +13,10 @@ services:
       # Relative to server/, where npm runs the start script.
       - key: CLIENT_DIR
         value: ../client/dist
-      # Proxies in front of the service; check it once with EXPOSE_CLIENT_IP (see the README).
+      # Proxies in front of the service: 3, checked on the live service on 2026-10-31 with EXPOSE_CLIENT_IP
+      # (1 and 2 showed Render-internal 10.x addresses). Re-check if client IPs look wrong (see the README).
       - key: TRUST_PROXY
-        value: "1"
+        value: "3"
       # Secret: Render asks for it when the Blueprint is created. Never commit it.
       - key: GEMINI_API_KEY
         sync: false
