@@ -18,12 +18,16 @@ When the user activates "Generate itinerary" on the review, the client SHALL sen
 - **THEN** the user sees the "could not be generated" error with "Try again"
 
 ### Requirement: Loading state
-While a generation request is running, the review SHALL show an announced status "Generating your itinerary…" with a hint that it usually takes up to half a minute, and a "Cancel" button. The user SHALL NOT be able to start a second request until the first one ends.
+While a generation request is running, the review SHALL show an announced status "Generating your itinerary…" with a hint that it usually takes up to half a minute, and a "Cancel" button. The user SHALL NOT be able to start a second request until the first one ends. After 15 seconds the status SHALL add "The server may be waking up after a pause. This can take up to a minute."
 
 #### Scenario: Waiting for the API
 - **WHEN** a user activates "Generate itinerary" and the API has not answered yet
 - **THEN** a status region announces "Generating your itinerary…"
 - **AND** a "Cancel" button is shown and no "Generate itinerary" button can be activated
+
+#### Scenario: Slow answer
+- **WHEN** the API has not answered 15 seconds after the user activated "Generate itinerary"
+- **THEN** the status also says "The server may be waking up after a pause. This can take up to a minute."
 
 ### Requirement: Cancel generation
 Activating "Cancel" SHALL abort the running request and return to the review with all values kept and a short "Generation cancelled" notice. Leaving the page while a request runs SHALL abort it too, without showing an error.
@@ -38,10 +42,10 @@ Activating "Cancel" SHALL abort the running request and return to the review wit
 - **THEN** the request is aborted and no error is shown or logged
 
 ### Requirement: Client timeout
-The client SHALL abort a generation request that has not finished within 45 seconds and show a timeout error with "Try again".
+The client SHALL abort a generation request that has not finished within 90 seconds and show a timeout error with "Try again".
 
 #### Scenario: No answer in time
-- **WHEN** the API has not answered 45 seconds after the user activated "Generate itinerary"
+- **WHEN** the API has not answered 90 seconds after the user activated "Generate itinerary"
 - **THEN** the request is aborted
 - **AND** the user sees "Generating the itinerary took too long. Please try again." with "Try again"
 
@@ -98,3 +102,14 @@ On success the client SHALL keep the trip in memory for the browser tab and open
 #### Scenario: Form kept after success
 - **WHEN** a user generates a trip and then opens `/plan`
 - **THEN** the form shows the values of the generated trip
+
+### Requirement: Warm-up request
+When the app loads in a browser tab, the client SHALL send one `GET /api/health` request in the background, so a sleeping server starts waking before the user generates. Its result SHALL be ignored and SHALL never show an error.
+
+#### Scenario: App opened
+- **WHEN** a user opens any page of the app
+- **THEN** the client sends `GET /api/health` once for that tab
+
+#### Scenario: Server unreachable
+- **WHEN** the warm-up request fails
+- **THEN** no error is shown and the app works as before

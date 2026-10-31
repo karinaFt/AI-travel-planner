@@ -36,8 +36,9 @@ Persistence: browser localStorage only. No database, no auth.
 | 9 | `connect-form-to-generation` | API client, loading, error, retry and cancel states, form values kept on failure                               | done (archived 2026-10-30) |
 | 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | done (archived 2026-10-30) |
 | 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, cost by day, exact money math                                     | done (archived 2026-10-30) |
-| 12 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
-| 13 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
+| 12 | `add-deployment` | One free Render web service (Blueprint) serving the API and the built client; warm-up, slow notice, 90 s client timeout | done (archived 2026-10-31) |
+| 13 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
+| 14 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
 
 ## Decisions carried between steps
 
@@ -68,7 +69,7 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - the server assigns IDs, dates, day numbers and the trip currency, sorts by start time, and maps unknown categories to `other`;
   - a wrong day count or a schema failure gives `502 AI_INVALID_RESPONSE` with no automatic retry;
   - Gemini is called with JSON output and a schema, and Zod is always the final authority;
-  - the response is a `Trip` (`id`, `createdAt`, `preferences`, `itinerary`), stored and shown as is in steps 9–13; `VALIDATION_ERROR` details are `{ fields: { "<path>": "<message>" } }`.
+  - the response is a `Trip` (`id`, `createdAt`, `preferences`, `itinerary`), stored and shown as is in steps 9–14; `VALIDATION_ERROR` details are `{ fields: { "<path>": "<message>" } }`.
 - **Running cost (step 7, decided 2026-10-27):** the app must stay completely free. Gemini runs on the free tier: an AI Studio key in a project without billing. The default model is `gemini-3.5-flash-lite` (switched from `gemini-3.8-flash` on 2026-10-30, which was overloaded on the free tier), overridable with `GEMINI_MODEL`. A missing `GEMINI_API_KEY` doesn't stop the server; generation answers `503 AI_UNAVAILABLE`.
 - **Platform (step 7):** Node.js 22.12+ (Node 20 is end-of-life), `@google/genai` 2.x; its 3.0 announces Node 22+.
 - **Error envelope (step 6):** `{ error: { code, message, requestId, details? } }`, with an `X-Request-Id` header. The codes are:
@@ -92,7 +93,7 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - 5 requests/min and 30/hour per IP;
   - one in-flight generation per IP;
   - JSON body ≤ 10 KB;
-  - AI timeout 30 s on the server, 45 s on the client;
+  - AI timeout 30 s on the server, 45 s on the client (90 s since step 12);
   - CORS allow-list from `ALLOWED_ORIGINS`;
   - never log bodies, prompts, model output or keys;
   - the README states that these measures do not make the app fully secure;
@@ -101,17 +102,23 @@ These were agreed during planning. Re-check each one when proposing the step it 
 - **Generation in the client (step 9, built 2026-10-30):**
   - `client/src/api/http.ts` `postJson` never throws; it returns `ApiResult<T>` with failure kinds `api`, `network`, `timeout`, `cancelled` and `invalid-response`. A success body must pass `tripSchema`;
   - `useGeneration` lives in `PlanPage`; after a `429` the error panel counts down `Retry-After` before "Try again" is enabled;
-  - on success the trip is saved in an in-memory `TripStore` (`client/src/features/trips/`) and the app opens `/trips/:id` (`client/src/pages/TripPage.tsx`), a minimal summary that shows "Trip not found" after a reload. Step 10 replaces the page; step 13 swaps the store for localStorage behind the same `get`/`save` interface;
+  - on success the trip is saved in an in-memory `TripStore` (`client/src/features/trips/`) and the app opens `/trips/:id` (`client/src/pages/TripPage.tsx`), a minimal summary that shows "Trip not found" after a reload. Step 10 replaces the page; step 14 swaps the store for localStorage behind the same `get`/`save` interface;
   - `vite preview` proxies `/api` like the dev server.
 - **Itinerary view (step 10, built 2026-10-30):**
   - `client/src/features/itinerary/` holds the view: overview, day tabs (WAI-ARIA, arrows/Home/End), day timeline, activity details expanded in place;
   - the selected day lives in `?day=N` (each change adds a history entry; an invalid value means day 1). `RootLayout` now moves focus only when the pathname changes, so query-only changes keep focus;
   - day and trip costs use `sumMoney()` from `shared/src/money.ts` (integer hundredths). The overview shows the estimated trip cost next to the budget; step 11 adds remaining/over and cost by day and should reuse `sumMoney`;
   - `App`/`RootLayout`/`TripStoreProvider` accept `initialTrips` for tests (`client/src/test/renderTripPage.tsx`).
-- **Money (step 11, revised 2026-10-30):** sums and differences are done in integer hundredths (`sumMoney`, `subtractMoney`). All amounts on a trip are in the trip currency, as `tripSchema` requires; nothing is converted and there are no per-currency totals (the user chose one currency per trip). Step 12 must keep new and edited activities in the trip currency.
-- **Budget summary (step 11, built 2026-10-30):** `client/src/features/budget/` holds `budgetSummary(budget, estimatedCost)` (pure: status within/over, difference, whole percent used) and the `BudgetSummary` card (amounts, meter, "Cost by day" table). `ItineraryView` computes the day costs once and passes them to the card and the timelines; step 12 only has to recompute them from the edited itinerary. The over-budget bar uses `coral-text`, because `coral` on the track fails 3:1.
-- **Editing (step 12):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
-- **Saving (step 13):**
+- **Money (step 11, revised 2026-10-30):** sums and differences are done in integer hundredths (`sumMoney`, `subtractMoney`). All amounts on a trip are in the trip currency, as `tripSchema` requires; nothing is converted and there are no per-currency totals (the user chose one currency per trip). Step 13 must keep new and edited activities in the trip currency.
+- **Budget summary (step 11, built 2026-10-30):** `client/src/features/budget/` holds `budgetSummary(budget, estimatedCost)` (pure: status within/over, difference, whole percent used) and the `BudgetSummary` card (amounts, meter, "Cost by day" table). `ItineraryView` computes the day costs once and passes them to the card and the timelines; step 13 only has to recompute them from the edited itinerary. The over-budget bar uses `coral-text`, because `coral` on the track fails 3:1.
+- **Deployment (step 12, built 2026-10-31):**
+  - one free Render web service from `render.yaml` (Blueprint): build `npm ci --include=dev && npm run build`, start `npm start`, health `/api/health`; Node from `.node-version` (24);
+  - the API serves `client/dist` when `CLIENT_DIR` is set (after the `/api` 404, so API paths never get `index.html`); `assets/` cached a year, everything else `no-cache`. Local development is unchanged;
+  - `GEMINI_API_KEY` is entered only in the Render dashboard (`sync: false`), never in the repository;
+  - `TRUST_PROXY=1` must be confirmed once on the live service with `EXPOSE_CLIENT_IP=true` and `/api/client-ip`, then turned off;
+  - free services sleep after 15 min: the client sends a warm-up `GET /api/health` on load, shows a waking-up note after 15 s of generation, and waits 90 s. In-memory limits reset on wake.
+- **Editing (step 13):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
+- **Saving (step 14):**
   - auto-save on generation and on every edit, with no Save button;
   - key `ai-travel-planner:trips` holding `{ version: 1, trips }`;
   - invalid entries are skipped and backed up, never silently deleted.
