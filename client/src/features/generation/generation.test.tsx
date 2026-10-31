@@ -203,11 +203,22 @@ describe('waiting on timers', () => {
     expect(within(alert).getByRole('button', { name: 'Try again' })).toBeEnabled()
   })
 
-  it('gives up after 45 seconds with a timeout message', async () => {
+  it('says the server may be waking up after 15 seconds', async () => {
+    mockFetch(hangingFetch)
+    await generateWithFakeTimers()
+    const wakingUp = /The server may be waking up after a pause\. This can take up to a minute\./
+
+    await advance(14_999)
+    expect(screen.getByRole('status')).not.toHaveTextContent(wakingUp)
+    await advance(1)
+    expect(screen.getByRole('status')).toHaveTextContent(wakingUp)
+  })
+
+  it('gives up after 90 seconds with a timeout message', async () => {
     const fetchMock = mockFetch(hangingFetch)
     await generateWithFakeTimers()
 
-    await advance(44_999)
+    await advance(89_999)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     await advance(1)
     expect(screen.getByRole('alert')).toHaveTextContent(ERROR_CODES.AI_TIMEOUT.message)

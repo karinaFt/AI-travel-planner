@@ -41,6 +41,8 @@ The API reads its configuration from environment variables. For local values, co
 | `GEMINI_API_KEY` | *(unset)* | Secret key for the Gemini API. Without it the API still runs, but generation answers `503 AI_UNAVAILABLE`. Never logged. |
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Gemini model used for itineraries. Flash-Lite has the most free quota; a larger model such as `gemini-3.8-flash` writes richer plans but has less free quota and is more often overloaded. |
 | `TRUST_PROXY` | `0` | Number of reverse proxies in front of the API, 0–10, used to find the client IP for rate limits. Keep `0` unless the API runs behind a proxy that sets `X-Forwarded-For`; see [Security](#security). |
+| `CLIENT_DIR` | *(unset)* | Built client to serve from the API, relative to `server/` (for example `../client/dist`). Set it only in production; in development Vite serves the client. If the directory has no `index.html`, the API stops at startup. |
+| `EXPOSE_CLIENT_IP` | `false` | `true` adds `GET /api/client-ip`, which returns the IP the API sees. Use it once after deploying to check `TRUST_PROXY`, then turn it off. |
 
 An invalid value stops the API at startup with exit code 1 and a message naming the variable (the value itself is never printed).
 
@@ -79,6 +81,8 @@ Know the free tier's limits:
 
 ```
 package.json          Workspaces root: shared scripts, oxlint, single lockfile
+render.yaml           Render Blueprint: one free web service for the API and the client
+.node-version         Node.js major version used by the host (24)
 .oxlintrc.json        Lint rules for every workspace
 shared/               Isomorphic code workspace (@travel-planner/shared)
   src/api.ts          API error codes, the error envelope schema and response types
@@ -120,7 +124,8 @@ server/               API workspace (@travel-planner/server): Express 5
   src/
     index.ts          Entry point: loads server/.env, validates config, listens
     app.ts            createApp(): middleware order and routes
-    config.ts         Environment validation (PORT, ALLOWED_ORIGINS, GEMINI_*, TRUST_PROXY)
+    config.ts         Environment validation (PORT, ALLOWED_ORIGINS, GEMINI_*, TRUST_PROXY,
+                      CLIENT_DIR, EXPOSE_CLIENT_IP)
     protection.ts     Generation limits: requests per minute and hour, AI timeout
     ai/               Itinerary generation: model port, Gemini adapter, prompt, response
                       schema, normalization of the model output
@@ -296,7 +301,8 @@ What the user types on `/plan` is kept in a draft (`TripDraftProvider`) while th
 The review step's **Generate itinerary** button sends the reviewed preferences to `POST /api/itineraries/generate` through `generateItinerary()` in `client/src/api/`. That client never throws: it returns the trip (checked against the shared `tripSchema`) or a typed failure.
 
 - **While waiting**, the review shows an announced "Generating your itinerary…" status and a **Cancel** button. Leaving the page also cancels the request.
-- **The client gives up after 45 seconds**, later than the API's own 30-second limit, to catch a hung connection.
+- **The client gives up after 90 seconds**, well after the API's own 30-second limit. The extra time covers a free-tier server waking up from sleep (see [Deploying to Render](#deploying-to-render)) or a hung connection. After 15 seconds the status adds that the server may be waking up.
+- **A warm-up request** (`GET /api/health`, from `client/src/api/warmUp.ts`) is sent once when the app loads, so a sleeping server starts waking while the user fills in the form.
 - **On failure**, an error panel shows a message users can act on, with **Try again** and **Edit details**. After `429 RATE_LIMITED`, **Try again** stays disabled until the `Retry-After` time has passed. After `400 VALIDATION_ERROR` only **Edit details** is offered. The reviewed values and the form draft are never lost.
 - **On success**, the trip is kept in memory for the tab (`TripStoreProvider`) and the app opens `/trips/<id>`. The trip is gone after a reload, and that page then shows "Trip not found". Saved trips come in a later step.
 
@@ -319,3 +325,53 @@ The review step's **Generate itinerary** button sends the reviewed preferences t
 - **Fonts** are Fraunces (headings) and Inter (UI text). They are self-hosted through Fontsource, so no requests go to external font services.
 - **Build pages from the primitives** in `client/src/components/ui/` instead of one-off styles. Page titles use `PageHeading`, because the layout moves focus to it after navigation.
 - **Don't animate `outline-color`.** Avoid the bare `transition` utility on focusable elements and list the animated properties explicitly, for example `transition-[color,background-color]`. Otherwise the focus ring fades in from the text color.
+
+## Deploying to Render
+
+The app runs on one **free** [Render](https://render.com/) web service. The API serves the built client too, so the browser talks to a single origin: no CORS setup and no second proxy. `render.yaml` describes the service as a Render Blueprint.
+
+### What the Blueprint sets up
+
+| Setting | Value |
+|---|---|
+| Plan | `free` |
+| Build command | `npm ci --include=dev && npm run build` |
+| Start command | `npm start` (the API, from `server/`) |
+| Health check | `GET /api/health` |
+| `CLIENT_DIR` | `../client/dist`, so the API serves the client, and `/plan` and `/trips/<id>` load directly |
+| `TRUST_PROXY` | `1`, for Render's proxy; check it below |
+| `GEMINI_API_KEY` | asked for when you create the Blueprint, never stored in the repository |
+
+Node.js comes from `.node-version` (24). Assets in `assets/` are cached for a year because their names change with every build; `index.html` is never cached, so a new deploy shows up on the next page load.
+
+### First deploy
+
+1. Push `main` to GitHub. Render deploys from the repository, not from your machine.
+2. On render.com, sign in and choose **New → Blueprint**. Use Blueprint, not New Web Service, so Render reads `render.yaml`.
+3. Connect GitHub when asked, then pick this repository and the `main` branch.
+4. Render shows the service from `render.yaml` and asks for `GEMINI_API_KEY`. Paste your free-tier key from [Free Gemini API key](#free-gemini-api-key), then create the Blueprint.
+5. Wait for the build to finish, then open the `https://<name>.onrender.com` URL Render shows. `/api/health` should answer `{"data":{"status":"ok"}}`.
+
+Every later push to `main` deploys again on its own.
+
+### Check the client IP once
+
+Rate limits are keyed by client IP, so the API must count Render's proxies correctly (see [Security](#security)). Render doesn't document the number, so check it:
+
+1. In the service, open **Environment**, add `EXPOSE_CLIENT_IP` = `true`, and save. Render redeploys.
+2. Open `https://<name>.onrender.com/api/client-ip`. It shows `{"data":{"ip":"..."}}`.
+3. Compare that address with your own public IP, for example from a "what is my IP" site.
+   - If they match, `TRUST_PROXY=1` is right.
+   - If it shows a different (Render) address, raise `TRUST_PROXY` by one, save, and check again. Never set it higher than the value that first shows your IP.
+4. Remove `EXPOSE_CLIENT_IP`, or set it to `false`, and save.
+
+### Changing settings later
+
+Render asks for `GEMINI_API_KEY` only when the Blueprint is created. To change the key, or any other variable, open the service, go to **Environment**, edit the value, and save. Render restarts the service with the new value.
+
+### Free plan limits
+
+- **The service sleeps** after 15 minutes without requests and takes about a minute to wake up. The app sends a warm-up request when a page loads, shows a "waking up" note during a slow generation, and waits up to 90 seconds.
+- **Waking up resets the rate-limit counters**, because they live in memory.
+- **750 free instance hours a month** per workspace; a sleeping service uses none. Going over the free bandwidth or build minutes without a payment method suspends free services until the next month. This app is small, so that is unlikely.
+- The plan's terms may change; check Render's [free instance docs](https://render.com/docs/free).

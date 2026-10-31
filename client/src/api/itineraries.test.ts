@@ -26,11 +26,11 @@ describe('generateItinerary', () => {
     })
   })
 
-  it('times out after 45 seconds', async () => {
+  it('times out after 90 seconds', async () => {
     vi.useFakeTimers()
     mockFetch(hangingFetch)
     const result = generateItinerary(fixturePreferences)
-    expect(CLIENT_TIMEOUT_MS).toBe(45_000)
+    expect(CLIENT_TIMEOUT_MS).toBe(90_000)
     await vi.advanceTimersByTimeAsync(CLIENT_TIMEOUT_MS)
     await expect(result).resolves.toEqual({ ok: false, error: { kind: 'timeout' } })
   })

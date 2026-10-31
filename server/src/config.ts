@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { z } from 'zod'
 
 export const DEFAULT_PORT = 3001
@@ -18,6 +20,10 @@ export type Config = {
     apiKey?: string
     model: string
   }
+  /** Absolute path of the built client to serve; unset serves only the API (local development). */
+  clientDir?: string
+  /** Mounts `GET /api/client-ip`, used once after deploying to check `TRUST_PROXY`. */
+  exposeClientIp: boolean
 }
 
 /** One line per invalid variable. Messages never include the rejected value. */
@@ -27,6 +33,8 @@ const MESSAGES = {
     'ALLOWED_ORIGINS must be a comma-separated list of http(s) origins without a path, such as http://localhost:5173',
   GEMINI_MODEL: `GEMINI_MODEL must be a model name such as ${DEFAULT_GEMINI_MODEL}`,
   TRUST_PROXY: `TRUST_PROXY must be a whole number of proxies from 0 to ${MAX_TRUST_PROXY}`,
+  CLIENT_DIR: 'CLIENT_DIR must be a directory that contains index.html (run npm run build first)',
+  EXPOSE_CLIENT_IP: 'EXPOSE_CLIENT_IP must be true or false',
 } as const
 
 type Variable = keyof typeof MESSAGES
@@ -92,13 +100,26 @@ const envSchema = z.object({
       .pipe(z.number().int().min(0).max(MAX_TRUST_PROXY))
       .optional(),
   ),
+  CLIENT_DIR: z.preprocess(unsetIfBlank, z.string().trim().optional()),
+  EXPOSE_CLIENT_IP: z.preprocess(unsetIfBlank, z.string().trim().pipe(z.enum(['true', 'false'])).optional()),
 })
 
+type FileSystem = {
+  /** Where a relative `CLIENT_DIR` starts; npm runs the server from server/. */
+  cwd?: string
+  fileExists?: (file: string) => boolean
+}
+
 /** Reads and validates the server configuration from an environment object. Throws `ConfigError`. */
-export function loadConfig(env: Record<string, string | undefined>): Config {
+export function loadConfig(
+  env: Record<string, string | undefined>,
+  { cwd = process.cwd(), fileExists = existsSync }: FileSystem = {},
+): Config {
   const result = envSchema.safeParse(env)
-  if (!result.success) {
-    const invalid = new Set(result.error.issues.map((issue) => issue.path[0] as Variable))
+  const invalid = new Set(result.error?.issues.map((issue) => issue.path[0] as Variable))
+  const clientDir = result.data?.CLIENT_DIR === undefined ? undefined : path.resolve(cwd, result.data.CLIENT_DIR)
+  if (clientDir !== undefined && !fileExists(path.join(clientDir, 'index.html'))) invalid.add('CLIENT_DIR')
+  if (!result.success || invalid.size > 0) {
     throw new ConfigError([...invalid].map((name) => MESSAGES[name]).join('\n'))
   }
   return {
@@ -109,14 +130,18 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       apiKey: result.data.GEMINI_API_KEY,
       model: result.data.GEMINI_MODEL ?? DEFAULT_GEMINI_MODEL,
     },
+    clientDir,
+    exposeClientIp: result.data.EXPOSE_CLIENT_IP === 'true',
   }
 }
 
-/** Fields for the startup log line. Never includes the API key. */
+/** Fields for the startup log line. Never includes the API key or the client path. */
 export function startupSummary(config: Config) {
   return {
     url: `http://localhost:${config.port}`,
     model: config.gemini.model,
     generation: config.gemini.apiKey ? 'enabled' : 'disabled',
+    servesClient: config.clientDir !== undefined,
+    exposesClientIp: config.exposeClientIp,
   } as const
 }

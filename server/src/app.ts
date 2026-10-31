@@ -3,6 +3,7 @@ import express, { type Router } from 'express'
 import helmet from 'helmet'
 import type { ItineraryModel } from './ai/model.ts'
 import type { Config } from './config.ts'
+import { clientApp } from './http/client-app.ts'
 import { createErrorHandler, notFound } from './http/errors.ts'
 import { createInFlightGuard } from './http/in-flight.ts'
 import { jsonBody } from './http/json-body.ts'
@@ -10,6 +11,7 @@ import { requestLogger, type Logger } from './http/logger.ts'
 import { generationRateLimit } from './http/rate-limit.ts'
 import { requestId } from './http/request-id.ts'
 import { GENERATION_LIMITS, type GenerationLimits } from './protection.ts'
+import { clientIpRouter } from './routes/client-ip.ts'
 import { healthRouter } from './routes/health.ts'
 import { createItinerariesRouter } from './routes/itineraries.ts'
 
@@ -47,12 +49,15 @@ export function createApp({ config, log, itineraryModel, extraRoutes, generation
   app.use(jsonBody)
 
   app.use('/api', healthRouter)
+  if (config.exposeClientIp) app.use('/api', clientIpRouter)
   app.use(
     '/api',
     createItinerariesRouter({ model: itineraryModel, inFlight: createInFlightGuard(), timeoutMs: limits.timeoutMs }),
   )
   if (extraRoutes) app.use('/api', extraRoutes)
   app.use('/api', notFound)
+  // After the /api 404, so API paths never fall through to index.html.
+  if (config.clientDir) app.use(clientApp(config.clientDir))
   app.use(createErrorHandler(log))
 
   return app

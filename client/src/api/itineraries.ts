@@ -2,8 +2,8 @@ import { tripSchema, type Trip, type TripPreferences } from '@travel-planner/sha
 import { z } from 'zod'
 import { postJson, type ApiResult } from './http.ts'
 
-/** Longer than the server's own 30 s limit: this only catches a hung connection or proxy. */
-export const CLIENT_TIMEOUT_MS = 45_000
+/** Well past the server's own 30 s limit: room for a free-tier server waking up (about a minute), or a hung connection. */
+export const CLIENT_TIMEOUT_MS = 90_000
 
 const successSchema = z.object({ data: z.object({ trip: tripSchema }) })
 

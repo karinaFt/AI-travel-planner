@@ -1,0 +1,21 @@
+# Render Blueprint: one free web service that serves the API and the built client from one origin.
+# Create it on render.com with New → Blueprint; see "Deploying to Render" in the README.
+services:
+  - type: web
+    name: ai-travel-planner
+    runtime: node
+    plan: free
+    # --include=dev: the build needs TypeScript, Vite and esbuild even if NODE_ENV=production is set.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      # Relative to server/, where npm runs the start script.
+      - key: CLIENT_DIR
+        value: ../client/dist
+      # Proxies in front of the service; check it once with EXPOSE_CLIENT_IP (see the README).
+      - key: TRUST_PROXY
+        value: "1"
+      # Secret: Render asks for it when the Blueprint is created. Never commit it.
+      - key: GEMINI_API_KEY
+        sync: false

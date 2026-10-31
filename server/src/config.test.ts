@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ConfigError,
@@ -26,13 +27,15 @@ describe('loadConfig', () => {
       allowedOrigins: ['http://localhost:5173'],
       trustProxy: 0,
       gemini: { apiKey: undefined, model: 'gemini-3.5-flash-lite' },
+      clientDir: undefined,
+      exposeClientIp: false,
     })
     expect(DEFAULT_PORT).toBe(3001)
     expect(DEFAULT_ALLOWED_ORIGINS).toEqual(['http://localhost:5173'])
   })
 
   it('treats blank variables as unset', () => {
-    expect(loadConfig({ PORT: '', ALLOWED_ORIGINS: '  ', GEMINI_API_KEY: ' ', GEMINI_MODEL: '', TRUST_PROXY: '' })).toEqual(
+    expect(loadConfig({ PORT: '', ALLOWED_ORIGINS: '  ', GEMINI_API_KEY: ' ', GEMINI_MODEL: '', TRUST_PROXY: '', CLIENT_DIR: ' ', EXPOSE_CLIENT_IP: '' })).toEqual(
       loadConfig({}),
     )
   })
@@ -114,8 +117,55 @@ describe('TRUST_PROXY', () => {
 describe('startupSummary', () => {
   it('reports the model and whether generation is enabled, never the key', () => {
     const withKey = startupSummary(loadConfig({ GEMINI_API_KEY: 'secret-key-value' }))
-    expect(withKey).toEqual({ url: 'http://localhost:3001', model: 'gemini-3.5-flash-lite', generation: 'enabled' })
+    expect(withKey).toEqual({
+      url: 'http://localhost:3001',
+      model: 'gemini-3.5-flash-lite',
+      generation: 'enabled',
+      servesClient: false,
+      exposesClientIp: false,
+    })
     expect(JSON.stringify(withKey)).not.toContain('secret-key-value')
     expect(startupSummary(loadConfig({})).generation).toBe('disabled')
+  })
+})
+
+describe('CLIENT_DIR', () => {
+  const root = path.resolve('/srv/app/server')
+  const builtClient = path.resolve('/srv/app/client/dist')
+  const fileExists = (file: string) => file === path.join(builtClient, 'index.html')
+
+  it('resolves a relative directory against the working directory', () => {
+    expect(loadConfig({ CLIENT_DIR: '../client/dist' }, { cwd: root, fileExists }).clientDir).toBe(builtClient)
+    expect(loadConfig({ CLIENT_DIR: builtClient }, { cwd: root, fileExists }).clientDir).toBe(builtClient)
+  })
+
+  it('stops when the directory has no index.html, without echoing the path', () => {
+    let error: unknown
+    try {
+      loadConfig({ CLIENT_DIR: '../missing-build' }, { cwd: root, fileExists })
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toBeInstanceOf(ConfigError)
+    expect((error as ConfigError).message).toMatch(/^CLIENT_DIR must be a directory that contains index.html/)
+    expect((error as ConfigError).message).not.toContain('missing-build')
+  })
+
+  it('reports whether the client is served, never the path', () => {
+    const summary = startupSummary(loadConfig({ CLIENT_DIR: '../client/dist' }, { cwd: root, fileExists }))
+    expect(summary.servesClient).toBe(true)
+    expect(JSON.stringify(summary)).not.toContain('dist')
+  })
+})
+
+describe('EXPOSE_CLIENT_IP', () => {
+  it('is off unless set to true', () => {
+    expect(loadConfig({}).exposeClientIp).toBe(false)
+    expect(loadConfig({ EXPOSE_CLIENT_IP: 'false' }).exposeClientIp).toBe(false)
+    expect(loadConfig({ EXPOSE_CLIENT_IP: ' true ' }).exposeClientIp).toBe(true)
+  })
+
+  it.each(['yes', '1', 'TRUE'])('rejects EXPOSE_CLIENT_IP=%s', (value) => {
+    expect(configError({ EXPOSE_CLIENT_IP: value })?.message).toBe('EXPOSE_CLIENT_IP must be true or false')
   })
 })

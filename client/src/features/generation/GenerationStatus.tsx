@@ -1,12 +1,18 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/Button.tsx'
+
+/** After this long, a free-tier server may still be waking up from sleep. */
+export const SLOW_NOTICE_MS = 15_000
 
 /** Shown while the itinerary is generated. Focus moves to Cancel so keyboard users can stop at once. */
 export function GenerationStatus({ onCancel }: { onCancel: () => void }) {
   const cancelRef = useRef<HTMLButtonElement>(null)
+  const [slow, setSlow] = useState(false)
 
   useEffect(() => {
     cancelRef.current?.focus()
+    const timer = setTimeout(() => setSlow(true), SLOW_NOTICE_MS)
+    return () => clearTimeout(timer)
   }, [])
 
   return (
@@ -19,6 +25,11 @@ export function GenerationStatus({ onCancel }: { onCancel: () => void }) {
         <p className="text-ink">
           <span className="font-semibold">Generating your itinerary…</span>
           <span className="block text-sm text-muted">This usually takes up to half a minute.</span>
+          {slow && (
+            <span className="block text-sm text-muted">
+              The server may be waking up after a pause. This can take up to a minute.
+            </span>
+          )}
         </p>
       </div>
       <div>
