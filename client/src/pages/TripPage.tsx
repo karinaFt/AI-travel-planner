@@ -9,7 +9,8 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle.ts'
 export function TripPage() {
   const { id = '' } = useParams()
   const trip = useTripStore().get(id)
-  return trip ? <ItineraryView trip={trip} /> : <TripNotFound />
+  // Keyed by ID, so opening another trip starts its edits from that trip.
+  return trip ? <ItineraryView key={trip.id} trip={trip} /> : <TripNotFound />
 }
 
 function TripNotFound() {

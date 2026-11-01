@@ -1,6 +1,6 @@
 import { cx } from './cx.ts'
 
-/** Shared look for text inputs, date inputs and selects. */
+/** Shared look for text inputs, text areas, date inputs and selects. */
 export function inputStyles(invalid = false, className?: string) {
   return cx(
     'block w-full rounded-xl border bg-surface px-4 py-3 text-base text-ink placeholder:text-muted/70',

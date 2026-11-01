@@ -1,6 +1,6 @@
 import { cx } from './cx.ts'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 export type ButtonSize = 'md' | 'lg'
 
 const base =
@@ -11,6 +11,7 @@ const variants: Record<ButtonVariant, string> = {
     'bg-primary text-surface shadow-card hover:bg-primary-hover hover:-translate-y-px motion-reduce:hover:translate-y-0',
   secondary: 'border border-line-strong bg-surface text-ink hover:border-primary hover:text-primary',
   ghost: 'text-primary underline-offset-4 hover:underline',
+  danger: 'border border-coral-text bg-surface text-coral-text hover:bg-coral-soft',
 }
 
 const sizes: Record<ButtonSize, string> = {

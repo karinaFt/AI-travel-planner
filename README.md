@@ -108,7 +108,7 @@ client/               Frontend workspace (@travel-planner/client)
     index.css         Tailwind import, design tokens (@theme) and base styles
     components/       Site header and other shared pieces
       ui/             UI primitives: Button, ButtonLink, Card, Container, PageHeading,
-                      Field, TextInput, DateInput, Select, RadioCardGroup
+                      Field, TextInput, TextArea, DateInput, Select, RadioCardGroup
     features/
       trip-setup/     Trip preferences form, its raw-input schema, style/pace/interests
                       fields, the review step and the draft kept for the tab session
@@ -116,6 +116,8 @@ client/               Frontend workspace (@travel-planner/client)
       trips/          Generated trips kept in memory for the tab (TripStoreProvider)
       itinerary/      The /trips/:id view: overview, day tabs, day timeline, activity details
       budget/         Budget summary on the trip page: remaining or over, usage bar, cost by day
+      editing/        Activity editing: the editTrip reducer, the activity form and its schema,
+                      the in-page delete confirmation
     api/              Typed API client: postJson() and generateItinerary()
     hooks/            Reusable hooks (document title)
     theme/            Contrast helper and the test that guards the token palette
@@ -316,6 +318,7 @@ The review step's **Generate itinerary** button sends the reviewed preferences t
 - **Budget** (`client/src/features/budget/`): the budget, the estimated cost of the whole trip, and what remains or how far over budget the plan is. A bar shows the share of the budget used ("8% of budget"), and a "Cost by day" table lists each day's cost with a total.
 - **Day tabs:** one per day. The selected day is kept in the URL as `?day=N`, so Back returns to the previous day. A missing or invalid value shows day 1. The arrow keys, Home and End move between tabs, and choosing a day keeps keyboard focus on its tab.
 - **Day timeline:** the day's title, number of activities and estimated cost, then the activities in start-time order with time, category and cost. **Details** expands an activity in place to show its time range, duration, description and that the cost is for the whole group.
+- **Editing** (`client/src/features/editing/`): **Edit** opens a form in place of the activity for its title, day, start time, duration, category, cost and description; changing the day moves the activity there. **Add activity** adds one to the selected day (at most 20 per day). **Delete** asks for confirmation in the page. Every change goes through the pure `editTrip()` reducer, which keeps each day in start-time order, puts new and edited activities in the trip currency and ignores any change that would fail `tripSchema`. The timelines and the budget summary follow every change, and a screen-reader message says what changed. Edits are kept in the tab's trip store, so they survive leaving the page but not a reload.
 - **Costs** are summed and subtracted exactly with `sumMoney()` and `subtractMoney()` from `shared/` (integer hundredths). Each activity cost is for the whole group. Every amount on a trip is in the trip currency; nothing is converted.
 
 ## Styling
