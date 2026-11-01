@@ -37,7 +37,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 10 | `add-itinerary-view` | `/trips/:id`: summary, day tabs, timeline, activity details, cost totals, empty and not-found states           | done (archived 2026-10-30) |
 | 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, cost by day, exact money math                                     | done (archived 2026-10-30) |
 | 12 | `add-deployment` | One free Render web service (Blueprint) serving the API and the built client; warm-up, slow notice, 90 s client timeout | done (archived 2026-10-31) |
-| 13 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | |
+| 13 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | done (archived 2026-11-01) |
 | 14 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
 
 ## Decisions carried between steps
@@ -117,7 +117,10 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - `GEMINI_API_KEY` is entered only in the Render dashboard (`sync: false`), never in the repository;
   - `TRUST_PROXY=1` must be confirmed once on the live service with `EXPOSE_CLIENT_IP=true` and `/api/client-ip`, then turned off;
   - free services sleep after 15 min: the client sends a warm-up `GET /api/health` on load, shows a waking-up note after 15 s of generation, and waits 90 s. In-memory limits reset on wake.
-- **Editing (step 13):** a pure reducer with stable IDs, re-sorting by start time, and an `itinerarySchema` guard. Delete confirmation is in-page, with no `window.confirm`.
+- **Editing (step 13, built 2026-10-31):**
+  - `client/src/features/editing/` holds `editTrip(trip, action)` (pure: add, update or move, delete; new IDs come with the action; stable re-sort by start time; added and edited activities get the trip currency; a `tripSchema` guard returns the same trip object when a change is invalid), the activity form with its raw-input schema, and the in-page delete confirmation (no `window.confirm`);
+  - `ItineraryView` holds the trip in state, changes it only through `editTrip`, and calls `store.save(trip)` after every change. Step 14 only has to swap the store implementation to auto-save every edit;
+  - switching days closes an open form without saving; a polite live region announces each change.
 - **Saving (step 14):**
   - auto-save on generation and on every edit, with no Save button;
   - key `ai-travel-planner:trips` holding `{ version: 1, trips }`;
