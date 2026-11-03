@@ -88,7 +88,7 @@ After an error, a cancel or a timeout, "Edit details" SHALL show the form with e
 - **THEN** the form shows every value from the review
 
 ### Requirement: Generated trip page
-On success the client SHALL keep the trip in memory for the browser tab and open `/trips/<trip id>`, which shows the itinerary view of that trip. An ID the tab does not hold SHALL show a "Trip not found" heading, explain that generated trips are kept only until the page is reloaded, and link to `/plan`.
+On success the client SHALL save the trip (see `saved-trips`) and open `/trips/<trip id>`, which shows the itinerary view of that trip. An ID that isn't saved in this browser SHALL show a "Trip not found" heading, explain that trips are saved only in the browser they were planned in and may have been deleted, and link to `/trips` and `/plan`.
 
 #### Scenario: Successful generation
 - **WHEN** the API returns a 3-day Lisbon trip with the ID `abc`
@@ -96,7 +96,7 @@ On success the client SHALL keep the trip in memory for the browser tab and open
 
 #### Scenario: Unknown trip
 - **WHEN** a user opens `/trips/unknown` directly
-- **THEN** a "Trip not found" heading and a link to plan a trip are shown
+- **THEN** a "Trip not found" heading and links to My trips and to plan a trip are shown
 - **AND** the tab title is "Trip not found · AI Travel Planner"
 
 #### Scenario: Form kept after success

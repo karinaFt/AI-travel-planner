@@ -128,11 +128,15 @@ A polite live region on the trip page SHALL announce each completed change: "Sav
 - **WHEN** a user saves an edit of "Lunch" that keeps it on the selected day
 - **THEN** focus is on the "Edit" button of "Lunch" and the live region says "Saved "Lunch"."
 
-### Requirement: Edits are kept for the tab
-The edited trip SHALL replace the trip in the trip store after every change, so leaving the trip page and opening it again in the same tab shows the edits. Switching days SHALL close an open form or delete confirmation without saving.
+### Requirement: Edits are saved
+The edited trip SHALL be saved after every change (see `saved-trips`), so reopening the trip page or reloading it shows the edits. Switching days SHALL close an open form or delete confirmation without saving.
 
 #### Scenario: Returning to the trip
 - **WHEN** a user deletes "Lunch", goes back to the previous page and then forward to the trip page
+- **THEN** the trip page does not list "Lunch"
+
+#### Scenario: Reloading the trip
+- **WHEN** a user deletes "Lunch" and reloads the page
 - **THEN** the trip page does not list "Lunch"
 
 #### Scenario: Switching days with an open form
