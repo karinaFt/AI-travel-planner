@@ -38,7 +38,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 11 | `add-budget-summary` | Budget, estimated, remaining or over budget, cost by day, exact money math                                     | done (archived 2026-10-30) |
 | 12 | `add-deployment` | One free Render web service (Blueprint) serving the API and the built client; warm-up, slow notice, 90 s client timeout | done (archived 2026-10-31) |
 | 13 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | done (archived 2026-11-01) |
-| 14 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | |
+| 14 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | done (archived 2026-11-03) |
 
 ## Decisions carried between steps
 
@@ -121,10 +121,14 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - `client/src/features/editing/` holds `editTrip(trip, action)` (pure: add, update or move, delete; new IDs come with the action; stable re-sort by start time; added and edited activities get the trip currency; a `tripSchema` guard returns the same trip object when a change is invalid), the activity form with its raw-input schema, and the in-page delete confirmation (no `window.confirm`);
   - `ItineraryView` holds the trip in state, changes it only through `editTrip`, and calls `store.save(trip)` after every change. Step 14 only has to swap the store implementation to auto-save every edit;
   - switching days closes an open form without saving; a polite live region announces each change.
-- **Saving (step 14):**
+- **Saving (step 14, built 2026-11-03):**
   - auto-save on generation and on every edit, with no Save button;
   - key `ai-travel-planner:trips` holding `{ version: 1, trips }`;
-  - invalid entries are skipped and backed up, never silently deleted.
+  - invalid entries are skipped and backed up, never silently deleted: before the main key is written again, they go to `ai-travel-planner:trips:backup:<ISO time>`, and a failed backup blocks the write;
+  - `client/src/features/trips/`: `tripRepository.ts` (read and write, no React), `createTripStore.ts` (memory first, then storage; every write re-reads storage and changes only its own trip), `useTrips.ts` (`useSyncExternalStore` hooks) and the My trips list at `/trips`;
+  - at most 50 trips (user decision 2026-11-03), never deleted automatically: at the limit, the review step offers My trips instead of "Generate";
+  - a failed save (quota, blocked storage, or the limit) keeps the trip open and editable for the tab, with a notice and "Try again" on its page;
+  - other tabs (user decision 2026-11-03): My trips and an open trip page follow `storage` events. A change from another tab remounts the trip view (closing any form) and is announced, and a trip deleted elsewhere shows "Trip deleted". The last write to the same trip wins.
 - **UI:** English copy, editorial and calm visual style (serif display + sans body, warm paper background, teal and terracotta accents), WCAG AA contrast, no dark mode.
 
 ## Out of scope for the MVP
