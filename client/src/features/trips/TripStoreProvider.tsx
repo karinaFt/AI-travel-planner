@@ -1,27 +1,30 @@
-import type { Trip } from '@travel-planner/shared'
-import { useRef, useState, type ReactNode } from 'react'
-import { TripStoreContext, type TripStore } from './tripStoreContext.ts'
+import { useEffect, useState, type ReactNode } from 'react'
+import { createTripStore } from './createTripStore.ts'
+import { TripStoreContext } from './tripStoreContext.ts'
 
-/**
- * Keeps generated trips for as long as the app is open in this tab. Not kept across reloads.
- *
- * Trips are saved right before navigating to their page, which reads them on render, so a ref is enough.
- */
-export function TripStoreProvider({
-  initialTrips = [],
-  children,
-}: {
-  /** Trips the store starts with; used by tests. */
-  initialTrips?: readonly Trip[]
-  children: ReactNode
-}) {
-  const trips = useRef(new Map<string, Trip>(initialTrips.map((trip) => [trip.id, trip])))
-  const [store] = useState<TripStore>(() => ({
-    get: (id) => trips.current.get(id),
-    save: (trip) => {
-      trips.current.set(trip.id, trip)
-    },
-  }))
+/** Saves trips in this browser's `localStorage` and follows changes other tabs make to them. */
+export function TripStoreProvider({ children }: { children: ReactNode }) {
+  const [store] = useState(() => createTripStore(getLocalStorage()))
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea === null || event.storageArea === window.localStorage) {
+        store.handleStorageChange(event.key)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [store])
 
   return <TripStoreContext.Provider value={store}>{children}</TripStoreContext.Provider>
+}
+
+/** `localStorage`, or null when the browser blocks it: reading the property itself can throw. */
+function getLocalStorage(): Storage | null {
+  try {
+    const storage = window.localStorage
+    return storage ?? null
+  } catch {
+    return null
+  }
 }

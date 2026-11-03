@@ -1,7 +1,7 @@
 import type { Activity } from '@travel-planner/shared'
 import { useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { DeleteConfirmation } from '../editing/DeleteConfirmation.tsx'
+import { DeleteConfirmation } from '../../components/ui/DeleteConfirmation.tsx'
 import { formatMoney } from '../trip-setup/format.ts'
 import { categoryLabel, formatDuration, formatTimeRange } from './format.ts'
 

@@ -101,7 +101,7 @@ client/               Frontend workspace (@travel-planner/client)
   public/             Static files copied as-is to the build
   src/
     main.tsx          Mounts the React app inside the browser router
-    App.tsx           Route table (/, /plan, /trips/:id, not-found)
+    App.tsx           Route table (/, /plan, /trips, /trips/:id, not-found)
     App.test.tsx      App shell and navigation tests
     config.ts         App-wide constants (app name)
     layouts/          Page frame shared by all routes (header + main)
@@ -109,21 +109,22 @@ client/               Frontend workspace (@travel-planner/client)
     index.css         Tailwind import, design tokens (@theme) and base styles
     components/       Site header and other shared pieces
       ui/             UI primitives: Button, ButtonLink, Card, Container, PageHeading,
-                      Field, TextInput, TextArea, DateInput, Select, RadioCardGroup
+                      Field, TextInput, TextArea, DateInput, Select, RadioCardGroup,
+                      DeleteConfirmation
     features/
       trip-setup/     Trip preferences form, its raw-input schema, style/pace/interests
                       fields, the review step and the draft kept for the tab session
       generation/     Generate flow on the review: state hook, loading and error panels, messages
-      trips/          Generated trips kept in memory for the tab (TripStoreProvider)
+      trips/          Saved trips: the localStorage repository, the trip store and its hooks,
+                      the My trips list (TripStoreProvider, createTripStore, tripRepository)
       itinerary/      The /trips/:id view: overview, day tabs, day timeline, activity details
       budget/         Budget summary on the trip page: remaining or over, usage bar, cost by day
-      editing/        Activity editing: the editTrip reducer, the activity form and its schema,
-                      the in-page delete confirmation
+      editing/        Activity editing: the editTrip reducer, the activity form and its schema
     api/              Typed API client: postJson() and generateItinerary()
     hooks/            Reusable hooks (document title)
     theme/            Contrast helper and the test that guards the token palette
     test/             Test setup and helpers (jest-dom, renderWithRouter, renderTripPage,
-                      fetch mocks, a valid trip fixture)
+                      fetch mocks, a valid trip fixture, seedTrips, a fake storage)
 server/               API workspace (@travel-planner/server): Express 5
   .env.example        Every environment variable with its default
   src/
@@ -299,7 +300,7 @@ The trip preferences rules (`tripPreferencesSchema`, which extends `tripBasicsSc
 
 The form in `client/src/features/trip-setup/formSchema.ts` parses the raw input strings, reuses these rules, and adds one browser-only rule: the start date can't be in the past (in the user's time zone).
 
-What the user types on `/plan` is kept in a draft (`TripDraftProvider`) while they move between pages in the same tab. A full reload starts empty; trips are saved for real in a later step.
+What the user types on `/plan` is kept in a draft (`TripDraftProvider`) while they move between pages in the same tab. A full reload starts the form empty; generated trips themselves are saved (see [Saved trips](#saved-trips)).
 
 ### Generating an itinerary in the app
 
@@ -309,7 +310,8 @@ The review step's **Generate itinerary** button sends the reviewed preferences t
 - **The client gives up after 90 seconds**, well after the API's own 30-second limit. The extra time covers a free-tier server waking up from sleep (see [Deploying to Render](#deploying-to-render)) or a hung connection. After 15 seconds the status adds that the server may be waking up.
 - **A warm-up request** (`GET /api/health`, from `client/src/api/warmUp.ts`) is sent once when the app loads, so a sleeping server starts waking while the user fills in the form.
 - **On failure**, an error panel shows a message users can act on, with **Try again** and **Edit details**. After `429 RATE_LIMITED`, **Try again** stays disabled until the `Retry-After` time has passed. After `400 VALIDATION_ERROR` only **Edit details** is offered. The reviewed values and the form draft are never lost.
-- **On success**, the trip is kept in memory for the tab (`TripStoreProvider`) and the app opens `/trips/<id>`. The trip is gone after a reload, and that page then shows "Trip not found". Saved trips come in a later step.
+- **On success**, the trip is saved in this browser and the app opens `/trips/<id>`. If it can't be saved, the page still opens and says why (see [Saved trips](#saved-trips)).
+- **With 50 saved trips**, the review shows a link to My trips instead of **Generate itinerary**, so no AI request is spent on a trip that couldn't be saved.
 
 ### The trip page
 
@@ -319,8 +321,20 @@ The review step's **Generate itinerary** button sends the reviewed preferences t
 - **Budget** (`client/src/features/budget/`): the budget, the estimated cost of the whole trip, and what remains or how far over budget the plan is. A bar shows the share of the budget used ("8% of budget"), and a "Cost by day" table lists each day's cost with a total.
 - **Day tabs:** one per day. The selected day is kept in the URL as `?day=N`, so Back returns to the previous day. A missing or invalid value shows day 1. The arrow keys, Home and End move between tabs, and choosing a day keeps keyboard focus on its tab.
 - **Day timeline:** the day's title, number of activities and estimated cost, then the activities in start-time order with time, category and cost. **Details** expands an activity in place to show its time range, duration, description and that the cost is for the whole group.
-- **Editing** (`client/src/features/editing/`): **Edit** opens a form in place of the activity for its title, day, start time, duration, category, cost and description; changing the day moves the activity there. **Add activity** adds one to the selected day (at most 20 per day). **Delete** asks for confirmation in the page. Every change goes through the pure `editTrip()` reducer, which keeps each day in start-time order, puts new and edited activities in the trip currency and ignores any change that would fail `tripSchema`. The timelines and the budget summary follow every change, and a screen-reader message says what changed. Edits are kept in the tab's trip store, so they survive leaving the page but not a reload.
+- **Editing** (`client/src/features/editing/`): **Edit** opens a form in place of the activity for its title, day, start time, duration, category, cost and description; changing the day moves the activity there. **Add activity** adds one to the selected day (at most 20 per day). **Delete** asks for confirmation in the page. Every change goes through the pure `editTrip()` reducer, which keeps each day in start-time order, puts new and edited activities in the trip currency and ignores any change that would fail `tripSchema`. The timelines and the budget summary follow every change, and a screen-reader message says what changed. Every edit is saved right away; there is no Save button.
 - **Costs** are summed and subtracted exactly with `sumMoney()` and `subtractMoney()` from `shared/` (integer hundredths). Each activity cost is for the whole group. Every amount on a trip is in the trip currency; nothing is converted.
+
+### Saved trips
+
+Trips are saved only in this browser, in `localStorage` (`client/src/features/trips/`). There are no accounts and nothing is sent to the server.
+
+- **Format:** the key `ai-travel-planner:trips` holds `{ "version": 1, "trips": [...] }` with complete trips. Each one is checked against the shared `tripSchema` when it is read.
+- **Auto-save:** a generated trip is saved before its page opens, and every edit right after it is made.
+- **My trips** (`/trips`, also in the header) lists saved trips newest first, links to each one and deletes a trip after an in-page confirmation.
+- **At most 50 trips.** Nothing is ever deleted to make room; the user deletes trips in My trips.
+- **When a save fails** (storage full, blocked, or the 50-trip limit), the trip stays open and editable in the tab. Its page says it isn't saved and offers **Try again**. When the browser doesn't allow `localStorage` at all, the app still works for the tab and My trips says so.
+- **Unreadable data is never deleted silently.** A trip that fails the schema, broken JSON or an unknown version is skipped and copied to a key starting with `ai-travel-planner:trips:backup:` before the main key is written again. If the backup can't be written, the main key isn't either. My trips says how many trips couldn't be read. Backups are kept only in storage; the app has no restore screen.
+- **Several tabs:** every save reads the stored trips first and changes only its own trip, so tabs don't overwrite each other's trips. Through the browser's `storage` event, My trips and an open trip page follow changes made in other tabs: an open form closes, the change is announced, and a trip deleted elsewhere shows "Trip deleted". When two tabs edit the same trip, the last save wins.
 
 ## Styling
 

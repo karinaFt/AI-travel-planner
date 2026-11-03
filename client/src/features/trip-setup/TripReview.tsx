@@ -1,9 +1,11 @@
 import { tripLengthInDays, type TripPreferences } from '@travel-planner/shared'
 import { useEffect, useRef, type Ref } from 'react'
 import { Button } from '../../components/ui/Button.tsx'
+import { ButtonLink } from '../../components/ui/ButtonLink.tsx'
 import { GenerationError } from '../generation/GenerationError.tsx'
 import { GenerationStatus } from '../generation/GenerationStatus.tsx'
 import type { GenerationState } from '../generation/useGeneration.ts'
+import { TRIP_LIMIT } from '../trips/createTripStore.ts'
 import { formatDate, formatMoney, plural } from './format.ts'
 import { paceTitle, travelStyleTitle } from './styleOptions.ts'
 
@@ -15,9 +17,19 @@ type TripReviewProps = {
   /** Starts generation; also used by "Try again". */
   onGenerate: () => void
   onCancel: () => void
+  /** The trip limit is reached, so a new trip couldn't be saved: no "Generate" button. */
+  atTripLimit?: boolean
 }
 
-export function TripReview({ preferences, onEdit, headingRef, generation, onGenerate, onCancel }: TripReviewProps) {
+export function TripReview({
+  preferences,
+  onEdit,
+  headingRef,
+  generation,
+  onGenerate,
+  onCancel,
+  atTripLimit = false,
+}: TripReviewProps) {
   const days = tripLengthInDays(preferences.startDate, preferences.endDate)
   const rows: Array<[string, string]> = [
     ['Destination', preferences.destination],
@@ -44,7 +56,13 @@ export function TripReview({ preferences, onEdit, headingRef, generation, onGene
           </div>
         ))}
       </dl>
-      <GenerationFooter state={generation} onGenerate={onGenerate} onCancel={onCancel} onEdit={onEdit} />
+      <GenerationFooter
+        state={generation}
+        onGenerate={onGenerate}
+        onCancel={onCancel}
+        onEdit={onEdit}
+        atTripLimit={atTripLimit}
+      />
     </section>
   )
 }
@@ -54,10 +72,11 @@ type GenerationFooterProps = {
   onGenerate: () => void
   onCancel: () => void
   onEdit: () => void
+  atTripLimit: boolean
 }
 
 /** The review's actions: generate, then a loading status or an error in their place. */
-function GenerationFooter({ state, onGenerate, onCancel, onEdit }: GenerationFooterProps) {
+function GenerationFooter({ state, onGenerate, onCancel, onEdit, atTripLimit }: GenerationFooterProps) {
   const generateRef = useRef<HTMLButtonElement>(null)
   const cancelled = state.name === 'idle' && state.notice === 'cancelled'
 
@@ -76,6 +95,22 @@ function GenerationFooter({ state, onGenerate, onCancel, onEdit }: GenerationFoo
         onRetry={onGenerate}
         onEdit={onEdit}
       />
+    )
+  }
+  if (atTripLimit) {
+    // Checked before generating, so no AI request is spent on a trip that couldn't be saved.
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="rounded-xl bg-coral-soft px-4 py-3 text-sm text-ink">
+          {`You have ${TRIP_LIMIT} saved trips. Delete one in My trips to plan another.`}
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <ButtonLink to="/trips">My trips</ButtonLink>
+          <Button variant="secondary" onClick={onEdit}>
+            Edit details
+          </Button>
+        </div>
+      </div>
     )
   }
   return (

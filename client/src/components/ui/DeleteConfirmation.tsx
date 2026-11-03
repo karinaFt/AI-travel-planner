@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
-import { Button } from '../../components/ui/Button.tsx'
+import { Button } from './Button.tsx'
 
 type DeleteConfirmationProps = {
   title: string
@@ -7,7 +7,7 @@ type DeleteConfirmationProps = {
   onKeep: () => void
 }
 
-/** Asks in the page, not in a browser dialog, before an activity is deleted. Focuses "Keep"; Escape keeps. */
+/** Asks in the page, not in a browser dialog, before something is deleted. Focuses "Keep"; Escape keeps. */
 export function DeleteConfirmation({ title, onDelete, onKeep }: DeleteConfirmationProps) {
   const questionId = useId()
   const keepRef = useRef<HTMLButtonElement>(null)

@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../../App.tsx'
 import { apiErrorResponse, hangingFetch, jsonResponse, mockFetch, requestBody } from '../../test/fetchMock.ts'
 import { renderWithRouter } from '../../test/renderWithRouter.tsx'
+import { seedTrips } from '../../test/seedTrips.ts'
 import { tripFixture } from '../../test/tripFixture.ts'
+import { TRIP_LIMIT } from '../trips/createTripStore.ts'
+import { readTrips } from '../trips/tripRepository.ts'
 import { fillPreferences, tripFields, validPreferences } from '../trip-setup/testUtils.tsx'
 import { NETWORK_MESSAGE, VALIDATION_MESSAGE } from './messages.ts'
 
@@ -223,5 +226,71 @@ describe('waiting on timers', () => {
     await advance(1)
     expect(screen.getByRole('alert')).toHaveTextContent(ERROR_CODES.AI_TIMEOUT.message)
     expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(true)
+  })
+})
+
+describe('saving the generated trip', () => {
+  const trip = tripFixture({ preferences: reviewed as never })
+  const savedTrips = Array.from({ length: TRIP_LIMIT }, (_, i) =>
+    tripFixture({ id: `00000000-0000-4000-8000-${String(1000 + i).padStart(12, '0')}` }),
+  )
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(TODAY)
+  })
+
+  it('saves the trip before opening its page', async () => {
+    mockFetch(async () => jsonResponse(200, { data: { trip } }))
+    const user = userEvent.setup()
+    await reachReview(user)
+
+    await user.click(generateButton()!)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lisbon' })).toBeInTheDocument()
+    expect(readTrips(localStorage).trips).toEqual([trip])
+    expect(screen.queryByText(/This trip isn't saved/)).not.toBeInTheDocument()
+  })
+
+  it(`offers My trips instead of Generate with ${TRIP_LIMIT} saved trips`, async () => {
+    seedTrips(savedTrips)
+    const fetchMock = mockFetch(async () => jsonResponse(200, { data: { trip } }))
+    const user = userEvent.setup()
+    await reachReview(user)
+
+    expect(generateButton()).not.toBeInTheDocument()
+    expect(screen.getByText(`You have ${TRIP_LIMIT} saved trips. Delete one in My trips to plan another.`)).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).getByRole('link', { name: 'My trips' })).toHaveAttribute('href', '/trips')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('opens the trip unsaved when another tab reached the limit during generation', async () => {
+    mockFetch(async () => {
+      seedTrips(savedTrips) // another tab, no event before the response
+      return jsonResponse(200, { data: { trip } })
+    })
+    const user = userEvent.setup()
+    await reachReview(user)
+
+    await user.click(generateButton()!)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lisbon' })).toBeInTheDocument()
+    expect(screen.getByText(`This trip isn't saved: you already have ${TRIP_LIMIT} saved trips.`)).toBeInTheDocument()
+    expect(readTrips(localStorage).trips).toHaveLength(TRIP_LIMIT)
+  })
+
+  it('opens the trip unsaved when storage is full', async () => {
+    mockFetch(async () => jsonResponse(200, { data: { trip } }))
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+    })
+    const user = userEvent.setup()
+    await reachReview(user)
+
+    await user.click(generateButton()!)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lisbon' })).toBeInTheDocument()
+    expect(screen.getByText("This trip isn't saved: browser storage is full or unavailable.")).toBeInTheDocument()
+    expect(within(screen.getByRole('tabpanel', { name: /Day 1/ })).getByRole('button', { name: 'Edit Lunch' })).toBeEnabled()
   })
 })

@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App.tsx'
 import { renderWithRouter } from './test/renderWithRouter.tsx'
+import { renderTripPage } from './test/renderTripPage.tsx'
+import { tripFixture } from './test/tripFixture.ts'
 
 function mainNav() {
   return screen.getByRole('navigation', { name: 'Main' })
@@ -168,6 +170,26 @@ describe('Header navigation', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Plan a trip' }),
     ).toBeInTheDocument()
+  })
+})
+
+describe('My trips link', () => {
+  it('opens My trips and marks it as current', async () => {
+    const user = userEvent.setup()
+    renderWithRouter(<App />)
+
+    await user.click(within(mainNav()).getByRole('link', { name: 'My trips' }))
+
+    expect(screen.getByRole('heading', { level: 1, name: 'My trips' })).toBeInTheDocument()
+    expect(within(mainNav()).getByRole('link', { name: 'My trips' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('marks no header link as current on a trip page', () => {
+    renderTripPage(tripFixture())
+
+    for (const link of within(mainNav()).getAllByRole('link')) {
+      expect(link).not.toHaveAttribute('aria-current')
+    }
   })
 })
 

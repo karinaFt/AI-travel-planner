@@ -24,6 +24,12 @@ export function SiteHeader() {
                 Plan a trip
               </NavLink>
             </li>
+            <li>
+              {/* `end`, so a trip's own page doesn't mark "My trips" as the current page. */}
+              <NavLink to="/trips" end className={navLinkClass}>
+                My trips
+              </NavLink>
+            </li>
           </ul>
         </nav>
       </Container>

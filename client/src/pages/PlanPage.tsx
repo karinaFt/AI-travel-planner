@@ -8,7 +8,9 @@ import { useGeneration } from '../features/generation/useGeneration.ts'
 import { TripPreferencesForm } from '../features/trip-setup/TripPreferencesForm.tsx'
 import { TripReview } from '../features/trip-setup/TripReview.tsx'
 import { useTripDraft } from '../features/trip-setup/tripDraftContext.ts'
+import { TRIP_LIMIT } from '../features/trips/createTripStore.ts'
 import { useTripStore } from '../features/trips/tripStoreContext.ts'
+import { useTripList } from '../features/trips/useTrips.ts'
 import { useDocumentTitle } from '../hooks/useDocumentTitle.ts'
 
 type Step = { name: 'form' } | { name: 'review'; preferences: TripPreferences }
@@ -21,8 +23,10 @@ export function PlanPage() {
   const destinationRef = useRef<HTMLInputElement>(null)
   const hasSwitchedStep = useRef(false)
   const trips = useTripStore()
+  const atTripLimit = useTripList().length >= TRIP_LIMIT
   const navigate = useNavigate()
   // On success the trip gets its own page; the draft stays, so /plan still shows these values.
+  // The page opens even when saving fails: it says why the trip isn't saved.
   const generation = useGeneration({
     onSuccess: (trip) => {
       trips.save(trip)
@@ -67,6 +71,7 @@ export function PlanPage() {
               goTo({ name: 'form' })
             }}
             generation={generation.state}
+            atTripLimit={atTripLimit}
             onGenerate={() => void generation.generate(step.preferences)}
             onCancel={generation.cancel}
           />

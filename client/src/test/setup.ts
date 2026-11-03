@@ -4,4 +4,6 @@ import { afterEach } from 'vitest'
 
 afterEach(() => {
   cleanup()
+  // Saved trips would otherwise leak into the next test.
+  localStorage.clear()
 })

@@ -1,11 +1,10 @@
-import type { Trip } from '@travel-planner/shared'
 import { useEffect, useRef, type MouseEvent } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { SiteHeader } from '../components/SiteHeader.tsx'
 import { TripDraftProvider } from '../features/trip-setup/TripDraftProvider.tsx'
 import { TripStoreProvider } from '../features/trips/TripStoreProvider.tsx'
 
-export function RootLayout({ initialTrips }: { initialTrips?: readonly Trip[] }) {
+export function RootLayout() {
   const location = useLocation()
   const mainRef = useRef<HTMLElement>(null)
   // Compare paths instead of using an "initial render" flag: StrictMode runs
@@ -44,7 +43,7 @@ export function RootLayout({ initialTrips }: { initialTrips?: readonly Trip[] })
       <SiteHeader />
       <main id="main" ref={mainRef} tabIndex={-1} className="focus:outline-none">
         <TripDraftProvider>
-          <TripStoreProvider initialTrips={initialTrips}>
+          <TripStoreProvider>
             <Outlet />
           </TripStoreProvider>
         </TripDraftProvider>
