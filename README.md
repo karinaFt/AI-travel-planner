@@ -2,6 +2,10 @@
 
 ### **Live Demo: [ai-travel-planner-blsx.onrender.com](https://ai-travel-planner-blsx.onrender.com/)**
 (free hosting: the first visit after a pause can take about a minute while the server wakes up).
+![img_1.png](img_1.png)
+![img.png](img.png)
+![img_3.png](img_3.png)
+![img_5.png](img_5.png)
 
 Plan a multi-day trip with AI. You enter your travel preferences, get a day-by-day itinerary, adjust the activities and their estimated costs, ask for an illustrated overview of any day, and keep your trips in the browser. It is a single-page React application built with Vite and TypeScript, backed by a small Express API.
 
