@@ -18,6 +18,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@travel-planner/shared": "^0.0.0",
     "date-fns": "^4.4.0",
+    "lucide-react": "^1.70.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-hook-form": "^7.90.0",

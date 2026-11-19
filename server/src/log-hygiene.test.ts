@@ -140,4 +140,54 @@ describe('log hygiene', () => {
     expect((await generate(target)).status).toBe(429)
     expectCleanLogs(2)
   })
+
+  describe('day briefs', () => {
+    const PLACE = 'place-marker-64'
+    const dayRequest = {
+      destination: DESTINATION,
+      currency: 'EUR',
+      travelers: 1,
+      travelStyle: 'culture',
+      pace: 'balanced',
+      interests: ['interest-marker-30'],
+      day: { dayNumber: 1, date: '2026-11-10', title: `${MODEL_OUTPUT} title` },
+      activities: [
+        {
+          id: '11111111-1111-4111-8111-111111111111',
+          title: 'origin-marker-12 museum',
+          category: 'culture',
+          startTime: '10:00',
+          durationMinutes: 90,
+          estimatedCost: 20,
+          description: '',
+        },
+      ],
+    }
+    const briefText = JSON.stringify({
+      blocks: [{ type: 'highlight', title: MODEL_OUTPUT, text: MODEL_OUTPUT, place: PLACE, activityKeys: ['a1'] }],
+    })
+    const briefApp = (generate: ItineraryModel['generate']) =>
+      createApp({
+        config: loadConfig({ GEMINI_API_KEY: API_KEY }),
+        log: createLogger((line) => lines.push(line)),
+        itineraryModel: { generate },
+        findPhoto: async () => null,
+      })
+    const sendBrief = (target: ReturnType<typeof briefApp>, body: object = dayRequest) =>
+      request(target).post('/api/days/brief').send(body)
+
+    it('logs no content for a successful brief, including the place name', async () => {
+      const response = await sendBrief(briefApp(async () => briefText))
+      expect(response.status).toBe(200)
+      expect(response.text).toContain(PLACE)
+      expectCleanLogs(1)
+      expect(lines.join('\n')).not.toContain(PLACE)
+    })
+
+    it('logs no content for an invalid brief request or invalid AI output', async () => {
+      expect((await sendBrief(briefApp(async () => briefText), { ...dayRequest, activities: [] })).status).toBe(400)
+      expect((await sendBrief(briefApp(async () => `{"blocks": "${MODEL_OUTPUT}"`))).status).toBe(502)
+      expectCleanLogs(2)
+    })
+  })
 })

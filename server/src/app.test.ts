@@ -59,6 +59,19 @@ describe('GET /api/health', () => {
     expect(response.headers['x-content-type-options']).toBe('nosniff')
     expect(response.headers).not.toHaveProperty('x-powered-by')
   })
+
+  it('allows images only from the same origin, data URLs and the Wikimedia media hosts, keeping the CSP defaults', async () => {
+    const response = await request(testApp()).get('/api/health')
+    const directives = Object.fromEntries(
+      String(response.headers['content-security-policy'])
+        .split(';')
+        .map((part) => part.trim().split(/\s+/))
+        .map(([name, ...values]) => [name, values.join(' ')]),
+    )
+    expect(directives['img-src']).toBe("'self' data: https://upload.wikimedia.org https://thumb.wikimedia.org")
+    expect(directives['default-src']).toBe("'self'")
+    expect(directives['script-src']).toBe("'self'")
+  })
 })
 
 describe('error envelope', () => {

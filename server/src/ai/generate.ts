@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { tripLengthInDays, type Trip, type TripPreferences } from '@travel-planner/shared'
 import { AppError } from '../http/errors.ts'
-import type { ItineraryModel } from './model.ts'
+import type { GenerateRequest, ItineraryModel } from './model.ts'
 import { normalizeTrip, type NormalizeDeps } from './normalize.ts'
 import { buildPrompt } from './prompt.ts'
 import { responseJsonSchema } from './response-schema.ts'
@@ -28,6 +28,17 @@ function abortable<T>(promise: Promise<T>, signal: AbortSignal | undefined): Pro
   })
 }
 
+/** Calls the model once and gives up with `AI_TIMEOUT` as soon as `signal` fires. */
+export async function callModel(model: ItineraryModel, request: GenerateRequest, signal?: AbortSignal) {
+  try {
+    return await abortable(model.generate(request, signal), signal)
+  } catch (error) {
+    // Whatever the model rejected with once the signal fired, the cause is the abort.
+    if (signal?.aborted) throw new AppError('AI_TIMEOUT')
+    throw error
+  }
+}
+
 /** One AI call, no retry: prompt → model → validated, normalized trip. */
 export async function generateTrip(
   preferences: TripPreferences,
@@ -36,16 +47,6 @@ export async function generateTrip(
 ): Promise<Trip> {
   const { systemInstruction, contents } = buildPrompt(preferences)
   const days = tripLengthInDays(preferences.startDate, preferences.endDate)
-  let text: string
-  try {
-    text = await abortable(
-      model.generate({ systemInstruction, contents, responseJsonSchema: responseJsonSchema(days) }, signal),
-      signal,
-    )
-  } catch (error) {
-    // Whatever the model rejected with once the signal fired, the cause is the abort.
-    if (signal?.aborted) throw new AppError('AI_TIMEOUT')
-    throw error
-  }
+  const text = await callModel(model, { systemInstruction, contents, responseJsonSchema: responseJsonSchema(days) }, signal)
   return normalizeTrip(text, preferences, deps)
 }

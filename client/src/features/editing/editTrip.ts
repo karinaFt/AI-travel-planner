@@ -1,4 +1,4 @@
-import { tripSchema, type Activity, type Day, type Trip } from '@travel-planner/shared'
+import { tripSchema, type Activity, type Day, type DayBrief, type Trip } from '@travel-planner/shared'
 
 /** An activity as the user enters it: no ID, no currency. */
 export type ActivityDraft = Omit<Activity, 'id' | 'currency'>
@@ -8,6 +8,8 @@ export type EditAction =
   /** `dayId` is the day the activity should end up on; another day moves it there. */
   | { type: 'update'; activityId: string; dayId: string; draft: ActivityDraft }
   | { type: 'delete'; activityId: string }
+  /** Saves a day overview on the day, replacing any earlier one. */
+  | { type: 'setBrief'; dayId: string; brief: DayBrief }
 
 /** Stable, so activities with the same start time keep their order. `HH:mm` strings compare as times. */
 const byStartTime = (activities: readonly Activity[]) =>
@@ -54,6 +56,10 @@ function applyToDays(trip: Trip, action: EditAction): Day[] | undefined {
         if (day.id === action.dayId) return withActivities(day, byStartTime([...day.activities, updated]))
         return day
       })
+    }
+    case 'setBrief': {
+      if (!days.some((day) => day.id === action.dayId)) return undefined
+      return days.map((day) => (day.id === action.dayId ? { ...day, brief: action.brief } : day))
     }
     case 'delete': {
       const source = days.find((day) => day.activities.some((activity) => activity.id === action.activityId))

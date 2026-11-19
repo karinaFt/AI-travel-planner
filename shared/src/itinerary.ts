@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isIsoDate, tripDates, tripLengthInDays } from './dates.ts'
+import { dayBriefSchema } from './day-brief.ts'
 import { CURRENCIES, LIMITS, MAX_TRIP_DAYS, hasAtMostTwoDecimals } from './trip-basics.ts'
 import { tripPreferencesSchema } from './trip-preferences.ts'
 
@@ -59,6 +60,8 @@ export const daySchema = z.object({
       (activities) => activities.every((activity, i) => i === 0 || activities[i - 1].startTime <= activity.startTime),
       'Activities must be sorted by start time',
     ),
+  /** The day overview, once the user has created one. Older saved trips have none. */
+  brief: dayBriefSchema.optional(),
 })
 
 /** Days numbered from 1 on consecutive dates. */

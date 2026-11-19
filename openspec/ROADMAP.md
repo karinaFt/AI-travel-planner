@@ -39,6 +39,7 @@ Persistence: browser localStorage only. No database, no auth.
 | 12 | `add-deployment` | One free Render web service (Blueprint) serving the API and the built client; warm-up, slow notice, 90 s client timeout | done (archived 2026-10-31) |
 | 13 | `add-activity-editing` | Add, edit, delete and move activities via a pure validated reducer                                             | done (archived 2026-11-01) |
 | 14 | `add-saved-trips` | localStorage repository, auto-save, `/trips` list, delete, corrupted-data and quota handling, cross-tab sync   | done (archived 2026-11-03) |
+| 15 | `add-day-brief` | On-demand day overview (generative UI): model picks blocks from a catalog, app renders them; Wikipedia photos, stale notice | implemented, not archived |
 
 ## Decisions carried between steps
 
@@ -129,6 +130,14 @@ These were agreed during planning. Re-check each one when proposing the step it 
   - at most 50 trips (user decision 2026-11-03), never deleted automatically: at the limit, the review step offers My trips instead of "Generate";
   - a failed save (quota, blocked storage, or the limit) keeps the trip open and editable for the tab, with a notice and "Try again" on its page;
   - other tabs (user decision 2026-11-03): My trips and an open trip page follow `storage` events. A change from another tab remounts the trip view (closing any form) and is announced, and a trip deleted elsewhere shows "Trip deleted". The last write to the same trip wins.
+- **Day overview (step 15, built 2026-11-09):**
+  - generative UI without model-written markup: the model returns 1–5 blocks (`highlight`, `route`, `tip`, `booking`, `budgetNote`) from the shared catalog in `shared/src/day-brief.ts`, and `client/src/features/day-brief/registry.tsx` maps each type to a component; unknown types render nothing;
+  - created only by the "Create day overview" button (user decision 2026-11-09), one Gemini call per click, so the free quota goes only to days the user asks about;
+  - `POST /api/days/brief`: activities are sent as `a1..aN` keys, never UUIDs; each block is validated on its own and dropped if bad; its own rate limit (10/min, 60/hour) and in-flight guard, separate from generation, sharing the 30 s timeout;
+  - photos: the model gives a place name, never a URL; the server finds a lead image with one Wikipedia search (no key, 3 s timeout, in-memory cache) and links its Commons file page for attribution. Thumbnails come from `thumb.wikimedia.org` (found in the end-to-end check; the plan assumed `upload.`), so the image URL check and the CSP `img-src` allow both Wikimedia media hosts;
+  - saved on the day as optional `brief` (`blocks`, `basedOn`, `activityTitles`, `generatedAt`), so older saved trips stay valid and the storage version stays 1. `basedOn` is `activitySignature()` of the activities that were sent; a mismatch shows "The plan for this day changed" with "Update overview", never an automatic call. `activityTitles` names references to activities deleted since;
+  - the budget numbers are computed in the browser from the current activities; the model only comments;
+  - the only new dependency is `lucide-react` (icons). Not AI image generation, which stays out of scope.
 - **UI:** English copy, editorial and calm visual style (serif display + sans body, warm paper background, teal and terracotta accents), WCAG AA contrast, no dark mode.
 
 ## Out of scope for the MVP
