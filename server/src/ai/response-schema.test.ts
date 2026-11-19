@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aiItinerarySchema, responseJsonSchema } from './response-schema.ts'
+import { AI_ACTIVITIES_PER_DAY, aiItinerarySchema, responseJsonSchema } from './response-schema.ts'
 
 describe('responseJsonSchema', () => {
   it('fixes the number of days', () => {
@@ -19,6 +19,26 @@ describe('responseJsonSchema', () => {
     // Every field is required, so the model can't leave one out.
     expect(days.items.required).toEqual(Object.keys(zodDay.shape))
     expect(days.items.properties.activities.items.required).toEqual(Object.keys(zodActivity.shape))
+  })
+
+  it('leaves the activity count to the Zod schema, so long trips stay within what Gemini can serve', () => {
+    const { activities } = responseJsonSchema(14).properties.days.items.properties
+    expect(activities).not.toHaveProperty('minItems')
+    expect(activities).not.toHaveProperty('maxItems')
+    const day = (count: number) => ({
+      title: 'Day',
+      activities: Array.from({ length: count }, () => ({
+        title: 'A',
+        description: 'B',
+        category: 'culture',
+        startTime: '09:00',
+        durationMinutes: 60,
+        estimatedCost: 0,
+      })),
+    })
+    expect(aiItinerarySchema.safeParse({ days: [day(AI_ACTIVITIES_PER_DAY.max)] }).success).toBe(true)
+    expect(aiItinerarySchema.safeParse({ days: [day(0)] }).success).toBe(false)
+    expect(aiItinerarySchema.safeParse({ days: [day(AI_ACTIVITIES_PER_DAY.max + 1)] }).success).toBe(false)
   })
 
   it('uses only keywords Gemini supports', () => {
