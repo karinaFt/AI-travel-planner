@@ -25,10 +25,10 @@ const trip = (days: FixtureActivity[][] = [[breakfast, lunch], [dinner], []]) =>
 const panel = () => screen.getByRole('tabpanel')
 const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}\\b`) })
 const status = () => screen.getByRole('status')
-const listed = () =>
-  within(panel())
-    .queryAllByRole('heading', { level: 3 })
-    .map((heading) => heading.textContent)
+const listed = () => {
+  const list = within(panel()).queryByRole('list', { name: 'Activities' })
+  return list ? within(list).queryAllByRole('heading', { level: 3 }).map((heading) => heading.textContent) : []
+}
 const budget = () => screen.getByRole('region', { name: 'Budget' })
 const costRow = (day: string) => within(budget()).getByRole('rowheader', { name: day }).closest('tr')!
 const form = (name: string) => screen.getByRole('form', { name })

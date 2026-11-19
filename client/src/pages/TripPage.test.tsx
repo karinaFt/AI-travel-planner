@@ -12,7 +12,10 @@ import { tripFixture } from '../test/tripFixture.ts'
 const trip = tripFixture()
 const route = `/trips/${trip.id}`
 const day1 = () => screen.getByRole('tabpanel', { name: /Day 1/ })
-const day1Titles = () => within(day1()).queryAllByRole('heading', { level: 3 }).map((h) => h.textContent)
+const day1Titles = () => {
+  const list = within(day1()).queryByRole('list', { name: 'Activities' })
+  return list ? within(list).queryAllByRole('heading', { level: 3 }).map((h) => h.textContent) : []
+}
 
 async function deleteLunch(user: ReturnType<typeof userEvent.setup>) {
   await user.click(within(day1()).getByRole('button', { name: 'Delete Lunch' }))

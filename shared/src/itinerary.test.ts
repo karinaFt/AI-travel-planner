@@ -81,6 +81,26 @@ describe('daySchema', () => {
     const unsorted = [activity({ startTime: '14:00' }), activity({ startTime: '09:30' })]
     expect(daySchema.safeParse(day(1, '2026-11-10', unsorted)).success).toBe(false)
   })
+
+  it('accepts a day with or without an overview, and rejects an invalid overview', () => {
+    const brief = {
+      blocks: [{ type: 'tip', text: 'Go early.', activityIds: [] }],
+      basedOn: 'abcd1234',
+      generatedAt: '2026-11-09T10:00:00.000Z',
+    }
+    expect(daySchema.safeParse(day(1, '2026-11-10')).success).toBe(true)
+    expect(daySchema.safeParse({ ...day(1, '2026-11-10'), brief }).success).toBe(true)
+    expect(daySchema.safeParse({ ...day(1, '2026-11-10'), brief: { ...brief, blocks: [] } }).success).toBe(false)
+  })
+
+  it('accepts an overview that refers to an activity no longer on the day', () => {
+    const brief = {
+      blocks: [{ type: 'booking', text: 'Book ahead.', activityIds: [randomUUID()] }],
+      basedOn: 'abcd1234',
+      generatedAt: '2026-11-09T10:00:00.000Z',
+    }
+    expect(daySchema.safeParse({ ...day(1, '2026-11-10'), brief }).success).toBe(true)
+  })
 })
 
 describe('itinerarySchema', () => {

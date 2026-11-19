@@ -18,10 +18,10 @@ const shared: Partial<Options> = {
 }
 
 /**
- * Per-IP limits for the generate endpoint, kept in this process's memory. Mount it before body parsing so
+ * Per-IP limits for one AI endpoint, kept in this process's memory. Mount it before body parsing so
  * malformed requests count too. The minute limit runs first, so a blocked burst doesn't use up the hour.
  */
-export function generationRateLimit({ perMinute, perHour }: Pick<GenerationLimits, 'perMinute' | 'perHour'>) {
+export function rateLimits({ perMinute, perHour }: Pick<GenerationLimits, 'perMinute' | 'perHour'>) {
   return [
     rateLimit({ ...shared, windowMs: MINUTE, limit: perMinute }),
     rateLimit({ ...shared, windowMs: HOUR, limit: perHour }),

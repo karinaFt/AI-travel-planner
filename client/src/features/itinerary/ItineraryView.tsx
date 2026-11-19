@@ -79,6 +79,7 @@ export function ItineraryView({ trip: initialTrip, updatedElsewhere = false }: I
           days={days}
           estimatedCost={dayCosts[selected - 1]}
           currency={currency}
+          preferences={trip.preferences}
           onEdit={applyEdit}
         />
       </Card>

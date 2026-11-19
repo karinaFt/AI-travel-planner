@@ -3,6 +3,7 @@ import { useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { DeleteConfirmation } from '../../components/ui/DeleteConfirmation.tsx'
 import { formatMoney } from '../trip-setup/format.ts'
+import { activityAnchorId } from './dayIds.ts'
 import { categoryLabel, formatDuration, formatTimeRange } from './format.ts'
 
 type ActivityItemProps = {
@@ -29,7 +30,12 @@ export function ActivityItem({ activity, onEdit, onDelete }: ActivityItemProps) 
   }
 
   return (
-    <li className="grid grid-cols-[3.5rem_1fr] gap-x-4 border-t border-line py-4 first:border-t-0 sm:grid-cols-[4rem_1fr]">
+    <li
+      id={activityAnchorId(id)}
+      // A focus target for the day overview's links, not a tab stop.
+      tabIndex={-1}
+      className="-mx-2 grid scroll-mt-24 grid-cols-[3.5rem_1fr] gap-x-4 rounded-xl border-t border-line px-2 py-4 transition-[box-shadow,background-color] duration-300 first:border-t-0 data-flash:bg-coral-soft/60 data-flash:ring-2 data-flash:ring-coral motion-reduce:transition-none sm:grid-cols-[4rem_1fr]"
+    >
       <time className="pt-0.5 font-semibold text-primary tabular-nums">{startTime}</time>
       <div>
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">

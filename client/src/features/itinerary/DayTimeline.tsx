@@ -1,7 +1,8 @@
-import { ACTIVITY_LIMITS, type Activity, type Day } from '@travel-planner/shared'
+import { ACTIVITY_LIMITS, type Activity, type Day, type TripPreferences } from '@travel-planner/shared'
 import { useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Button } from '../../components/ui/Button.tsx'
+import { DayBrief } from '../day-brief/DayBrief.tsx'
 import { ActivityForm } from '../editing/ActivityForm.tsx'
 import { activityValues, newActivityValues, type ActivityFormOutput } from '../editing/activityFormSchema.ts'
 import { formatMoney, plural } from '../trip-setup/format.ts'
@@ -16,6 +17,8 @@ type DayTimelineProps = {
   days: readonly Day[]
   estimatedCost: number
   currency: string
+  /** The trip's preferences, sent with a day overview request. */
+  preferences: TripPreferences
   onEdit: ApplyEdit
 }
 
@@ -23,7 +26,7 @@ type DayTimelineProps = {
 type Editing = { mode: 'add' } | { mode: 'edit'; activityId: string } | null
 
 /** The selected day's tab panel: its heading and totals, its activities in start-time order, and editing. */
-export function DayTimeline({ day, days, estimatedCost, currency, onEdit }: DayTimelineProps) {
+export function DayTimeline({ day, days, estimatedCost, currency, preferences, onEdit }: DayTimelineProps) {
   const [editing, setEditing] = useState<Editing>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const count = day.activities.length
@@ -85,10 +88,15 @@ export function DayTimeline({ day, days, estimatedCost, currency, onEdit }: DayT
       <p className="mt-2 text-sm text-muted">
         {plural(count, 'activity', 'activities')} · Estimated {formatMoney(estimatedCost, currency)}
       </p>
+      <DayBrief
+        day={day}
+        preferences={preferences}
+        onSave={(brief) => onEdit({ type: 'setBrief', dayId: day.id, brief }, 'Day overview created.')}
+      />
       {count === 0 ? (
         <p className="mt-6 rounded-xl bg-sky px-4 py-3 text-ink">No activities are planned for this day.</p>
       ) : (
-        <ol className="mt-4">
+        <ol aria-label="Activities" className="mt-4">
           {day.activities.map((activity) =>
             editing?.mode === 'edit' && editing.activityId === activity.id ? (
               <li key={activity.id} className="border-t border-line py-4 first:border-t-0">

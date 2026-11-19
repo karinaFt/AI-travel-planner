@@ -1,7 +1,11 @@
 import { ACTIVITY_CATEGORIES, ACTIVITY_LIMITS, START_TIME } from '@travel-planner/shared'
 import { z } from 'zod'
 
-/** Activities the model may return per day. Tighter than the shared per-day limit, which leaves room to edit. */
+/**
+ * Activities the model may return per day. Tighter than the shared per-day limit, which leaves room to edit.
+ * Checked only by the Zod schema: sent as `minItems`/`maxItems` on the nested array, Gemini rejects trips of
+ * about 5+ days with 400 "too many states for serving".
+ */
 export const AI_ACTIVITIES_PER_DAY = { min: 1, max: 8 } as const
 
 /** `9:30` → `09:30`; anything else is left for the pattern to judge. */
@@ -15,16 +19,19 @@ export const aiItinerarySchema = z.object({
   days: z.array(
     z.object({
       title: z.string(),
-      activities: z.array(
-        z.object({
-          title: z.string(),
-          description: z.string(),
-          category: z.string(),
-          startTime: z.string().trim().transform(padHour).pipe(z.string().regex(START_TIME)),
-          durationMinutes: z.number(),
-          estimatedCost: z.number().min(0),
-        }),
-      ),
+      activities: z
+        .array(
+          z.object({
+            title: z.string(),
+            description: z.string(),
+            category: z.string(),
+            startTime: z.string().trim().transform(padHour).pipe(z.string().regex(START_TIME)),
+            durationMinutes: z.number(),
+            estimatedCost: z.number().min(0),
+          }),
+        )
+        .min(AI_ACTIVITIES_PER_DAY.min)
+        .max(AI_ACTIVITIES_PER_DAY.max),
     }),
   ),
 })
@@ -49,8 +56,7 @@ export function responseJsonSchema(dayCount: number) {
             title: { type: 'string', description: 'Short title for the day' },
             activities: {
               type: 'array',
-              minItems: AI_ACTIVITIES_PER_DAY.min,
-              maxItems: AI_ACTIVITIES_PER_DAY.max,
+              description: `${AI_ACTIVITIES_PER_DAY.min} to ${AI_ACTIVITIES_PER_DAY.max} activities`,
               items: {
                 type: 'object',
                 properties: {

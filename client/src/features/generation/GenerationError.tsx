@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '../../components/ui/Button.tsx'
+import { useSecondsLeft } from '../../hooks/useSecondsLeft.ts'
 import { describeFailure, type GenerationFailure } from './messages.ts'
 
 type GenerationErrorProps = {
@@ -8,23 +9,6 @@ type GenerationErrorProps = {
   failedAt: number
   onRetry: () => void
   onEdit: () => void
-}
-
-/** Whole seconds left until `until`, updated every second until it reaches 0. */
-function useSecondsLeft(until: number | undefined) {
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    if (until === undefined) return
-    const timer = setInterval(() => {
-      const current = Date.now()
-      setNow(current)
-      if (current >= until) clearInterval(timer)
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [until])
-
-  return until === undefined ? 0 : Math.max(0, Math.ceil((until - now) / 1000))
 }
 
 /** A failed generation: what happened, and the ways forward. Focus moves to its heading. */

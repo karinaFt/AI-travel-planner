@@ -1,4 +1,4 @@
-import type { Trip } from '@travel-planner/shared'
+import type { DayBrief, Trip } from '@travel-planner/shared'
 import { describe, expect, it } from 'vitest'
 import { tripFixture, type FixtureActivity } from '../../test/tripFixture.ts'
 import { editTrip, type ActivityDraft } from './editTrip.ts'
@@ -170,5 +170,42 @@ describe('editTrip: guards', () => {
     const sneaky = { ...draft({ title: 'Tram' }), currency: 'USD' } as ActivityDraft
     const after = editTrip(before, { type: 'add', dayId: dayId(before, 1), id: NEW_ID, draft: sneaky })
     expect(activity(after, 'Tram').currency).toBe('EUR')
+  })
+})
+
+describe('editTrip: setBrief', () => {
+  const brief = (text = 'Go early.'): DayBrief => ({
+    blocks: [{ type: 'tip', text, activityIds: [] }],
+    basedOn: 'abcd1234',
+    generatedAt: '2026-11-09T10:00:00.000Z',
+  })
+
+  it('saves the overview on the day and keeps its activities', () => {
+    const before = trip()
+    const after = editTrip(before, { type: 'setBrief', dayId: dayId(before, 1), brief: brief() })
+    expect(after.itinerary.days[0].brief).toEqual(brief())
+    expect(titles(after, 1)).toEqual(['Walk', 'Coffee', 'Museum'])
+    expect(after.itinerary.days[1].brief).toBeUndefined()
+  })
+
+  it('replaces an earlier overview', () => {
+    const before = trip()
+    const once = editTrip(before, { type: 'setBrief', dayId: dayId(before, 1), brief: brief() })
+    const twice = editTrip(once, { type: 'setBrief', dayId: dayId(before, 1), brief: brief('Go late.') })
+    expect(twice.itinerary.days[0].brief?.blocks[0]).toMatchObject({ text: 'Go late.' })
+  })
+
+  it('returns the same trip for an unknown day or an invalid overview', () => {
+    const before = trip()
+    expect(editTrip(before, { type: 'setBrief', dayId: NEW_ID, brief: brief() })).toBe(before)
+    const invalid = { ...brief(), blocks: [] } as DayBrief
+    expect(editTrip(before, { type: 'setBrief', dayId: dayId(before, 1), brief: invalid })).toBe(before)
+  })
+
+  it('keeps the overview when activities are edited', () => {
+    const before = editTrip(trip(), { type: 'setBrief', dayId: dayId(trip(), 1), brief: brief() })
+    const after = editTrip(before, { type: 'delete', activityId: activity(before, 'Coffee').id })
+    expect(after.itinerary.days[0].brief).toEqual(brief())
+    expect(titles(after, 1)).toEqual(['Walk', 'Museum'])
   })
 })
